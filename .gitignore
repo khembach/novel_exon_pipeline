@@ -4,3 +4,4 @@
 annotation/
 reference/
 .snakemake/
+.Renviron
