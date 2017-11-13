@@ -3,5 +3,7 @@
 .Rhistory
 annotation/
 reference/
+logs/
+simulation/
 .snakemake/
 .Renviron

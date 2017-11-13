@@ -1,0 +1,22 @@
+chromosomes:
+    - 19
+    - 22
+
+simulation_name: simulated_reads_chr19_22
+
+reduced_gtf:
+    me: "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me.gtf"
+    exon: "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_exon.gtf"
+    me_exon: "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me_exon.gtf"
+
+star_param:
+    default: ""
+    outSJfilterOverhangMin9: "--outSJfilterOverhangMin 30 9 9 9"
+    outSJfilterOverhangMin6: "--outSJfilterOverhangMin 30 6 6 6"
+    outSJfilterCountTotalMin3: "--outSJfilterCountTotalMin 3 3 3 3"
+    scoreGenomicLengthLog2scale0: "--scoreGenomicLengthLog2scale 0"
+    alignSJoverhangMin3: "--alignSJoverhangMin 3"
+
+tophat_param:
+    default: ""
+    microexons_search: "--microexon-search"

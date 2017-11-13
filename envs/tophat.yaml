@@ -1,0 +1,29 @@
+name: tophat-env
+channels:
+- bioconda
+- r
+- defaults
+dependencies:
+- bowtie2=2.2.5=py27_2
+- perl-threaded=5.22.0=10
+- tophat=2.1.1=py27_1
+- ca-certificates=2017.08.26=h1d4fec5_0
+- certifi=2017.7.27.1=py27h9ceb091_0
+- libedit=3.1=heed3624_0
+- libffi=3.2.1=hd88cf55_4
+- libgcc=7.2.0=h69d50b8_2
+- libgcc-ng=7.2.0=h7cc24e2_2
+- libstdcxx-ng=7.2.0=h7a57d05_2
+- ncurses=6.0=h06874d7_1
+- openssl=1.0.2m=h8cfc7e7_0
+- pip=9.0.1=py27ha730c48_4
+- python=2.7.14=ha6fc286_23
+- readline=7.0=hb321a52_4
+- setuptools=36.5.0=py27h68b189e_0
+- sqlite=3.20.1=hb898158_2
+- tk=8.6.7=hc745277_3
+- wheel=0.29.0=py27h411dd7b_1
+- zlib=1.2.11=ha838bed_2
+- pip:
+  - htseq==0.6.1p1
+prefix: /home/kathi/miniconda3/envs/tophat-env
