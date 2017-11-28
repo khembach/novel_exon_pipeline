@@ -82,11 +82,15 @@ rule star_mapping:
 		"""
 		STAR --genomeDir {input.star_index} --readFilesIn {input.fastq1} {input.fastq2} --runThreadN {threads} \
 		--outFilterMultimapNmax 1 --outSAMtype BAM Unsorted --outFileNamePrefix {params.outdir}/ \
-		--sjdbOverhang 100 {params.test_param} 2> {log.log1}
+		--sjdbOverhang 100 --outSAMstrandField intronMotif {params.test_param} 2> {log.log1}
 		STAR --genomeDir {input.star_index} --readFilesIn {input.fastq1} {input.fastq2} --runThreadN {threads} \
 		--outFilterMultimapNmax 1 --outSAMtype BAM Unsorted --outFileNamePrefix {params.outdir}/pass2_ \
-		--sjdbOverhang 100 --sjdbFileChrStartEnd {output.sj1} {params.test_param} 2> {log.log2}
+		--sjdbOverhang 100 --outSAMstrandField intronMotif --sjdbFileChrStartEnd {output.sj1} {params.test_param} 2> {log.log2}
 		"""
+        ## --outSAMstrandField intronMotif should create an XS attribute in the output file
+        ##–outSAMattributes NH HI AS nM XS --> did not work, still no XS attribute in output file!
+
+
 
 
 def get_tophat_param(wildcards):

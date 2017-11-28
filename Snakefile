@@ -2,6 +2,12 @@
 ## The directory contains a .Renviron file that specifies the R library. This is necessary, because Rscript does not find the libraries without.
 ## Or, you can speficy the R, Rscript version and the library in the snakemake file by using the bash login shell:
 
+### force reexecution of everything in rule all that depends on changed files:
+# snakemake -n --forcerun $(snakemake --list-input-changes)
+
+
+
+
 ### use bash login shell for execution
 shell.executable("/bin/bash")
 shell.prefix("source ~/.bashrc; ")
@@ -36,10 +42,21 @@ include: "rules/mapping.smk"
 
 rule all:
     input:
-        #    expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
-        #    test_dirnames = config["star_param"], bam_name = ["Aligned.out", "pass2_Aligned.out"])
+        expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
+        test_dirnames = config["star_param"], bam_name = ["Aligned.out", "pass2_Aligned.out"]),
         expand("simulation/mapping/tophat/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
-        test_dirnames = config["tophat_param"], bam_name = ["accepted_hits"])
+        test_dirnames = config["tophat_param"], bam_name = ["accepted_hits"]),
+        expand("simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt", removed_exon = config["reduced_gtf"]),
+        config["reduced_exons"]["me"],
+        config["reduced_exons"]["exon"],
+        config["reduced_exons"]["me_exon"],
+        config["reduced_gtf"]["me"],
+        config["reduced_gtf"]["exon"],
+        config["reduced_gtf"]["me_exon"]
+        # expand("simulation/analysis/removed_exon_truth/removed_{removed_exon}_summary_table.txt", removed_exon = config["reduced_exons"]),
+        # expand("simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt", removed_exon = config["reduced_exons"])
+
+
 
 
 ##################
@@ -61,7 +78,7 @@ rule exon_truth:
 		fastq1 = "simulation/simulated_data/simulated_reads_chr19_22_1.fq",
 		fastq2 = "simulation/simulated_data/simulated_reads_chr19_22_2.fq"
 	output:
-		"simulation/analysis/GRCh37.85_chr19_22_exon_truth.txt"
+		"simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
 	threads: CORES
 	script:
 		"scripts/count_exon_truth.R"
@@ -74,13 +91,37 @@ rule exon_truth:
 rule reduce_GTF:
     input:
         gtf=GTF,
-        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
+        truth = "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
     output:
+        list(config["reduced_exons"].values()),
         me = config["reduced_gtf"]["me"],
         exon = config["reduced_gtf"]["exon"],
         me_exon = config["reduced_gtf"]["me_exon"]
     script:
-        "scripts/reduce_GTF.R"
+        "scripts/reduce_GTF_expressed_exons.R"
+
+rule removed_exons_truth:
+    input:
+        gtf = lambda wildcards: config["reduced_exons"][wildcards.removed_exon],
+        truth = "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
+    output:
+        outfile = "simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt"
+    script:
+        "scripts/novel_exon_truth_table.R"
+
+# ## write summary table with information about all removed me/exons
+# rule removed_exons_table:
+#     input:
+#         removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.removed_exon],
+#         truth = "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt",
+#         reduced_gtf = lambda wildcards: config["reduced_gtf"][wildcards.removed_exon]
+#     output:
+#         "simulation/analysis/removed_exon_truth/removed_{removed_exon}_summary_table.txt"
+#     script:
+#         "scripts/write_removed_exons_table.R"
+
+
+
 
 
 
@@ -106,3 +147,18 @@ rule run_fastqc:
 # Run read mapping
 
 ##################
+
+
+##################
+
+# Exon quantification
+
+##################
+
+## featureCounts
+
+## EQP
+
+## Salmon derived counts
+## --> discovery of novel splicing events from the STAR splice junctions
+## or using SGseq

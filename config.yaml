@@ -4,10 +4,21 @@ chromosomes:
 
 simulation_name: simulated_reads_chr19_22
 
+## gtf files with removed mes / exons
 reduced_gtf:
     me: "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me.gtf"
     exon: "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_exon.gtf"
     me_exon: "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me_exon.gtf"
+
+## gtf files of the removed mes / exons
+reduced_exons:
+    me: "simulation/reduced_GTF/removed_me.gtf"
+    exon: "simulation/reduced_GTF/removed_exon.gtf"
+    me_exon: "simulation/reduced_GTF/removed_me_exon.gtf"
+
+## direcory with the removed and reduced gtf files
+reduced_dir:
+    "simulation/reduced_GTF"
 
 star_param:
     default: ""
@@ -20,3 +31,10 @@ star_param:
 tophat_param:
     default: ""
     microexons_search: "--microexon-search"
+
+
+##directory with the EQP scripts
+eqp: "/home/kathi/software/EQP-QM-master"
+
+## directory with EQP setup files
+eqp_setup: "EQP_sequp/"
