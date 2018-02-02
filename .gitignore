@@ -7,3 +7,5 @@ logs/
 simulation/
 .snakemake/
 .Renviron
+difficult_novel_exon_examples/
+igv_session*
