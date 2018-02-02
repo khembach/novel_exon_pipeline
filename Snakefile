@@ -4,6 +4,7 @@
 
 ### force reexecution of everything in rule all that depends on changed files:
 # snakemake -n --forcerun $(snakemake --list-input-changes)
+# snakemake --forcerun $(snakemake --list-input-changes) --cores 24 --use-conda
 
 
 
@@ -38,26 +39,26 @@ STAR_PARAMS_DIRNAME = ["default", "default_2_pass", "outSJfilterOverhangMin9", "
 ### sub sections of the workflow:
 include: "rules/rsem_simulation.smk"
 include: "rules/mapping.smk"
+include: "rules/predict_novel_splicing_events.smk"
 
 
 rule all:
     input:
-        expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
-        test_dirnames = config["star_param"], bam_name = ["Aligned.out", "pass2_Aligned.out"]),
-        expand("simulation/mapping/tophat/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
-        test_dirnames = config["tophat_param"], bam_name = ["accepted_hits"]),
-        expand("simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt", removed_exon = config["reduced_gtf"]),
-        config["reduced_exons"]["me"],
-        config["reduced_exons"]["exon"],
-        config["reduced_exons"]["me_exon"],
-        config["reduced_gtf"]["me"],
-        config["reduced_gtf"]["exon"],
-        config["reduced_gtf"]["me_exon"]
+        # expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
+        # test_dirnames = config["star_param"], bam_name = ["Aligned.out", "pass2_Aligned.out"]),
+        # expand("simulation/mapping/tophat/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
+        # test_dirnames = config["tophat_param"], bam_name = ["accepted_hits"]),
+        # expand("simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt", removed_exon = config["reduced_gtf"]),
+        # config["reduced_exons"]["me"],
+        # config["reduced_exons"]["exon"],
+        # config["reduced_exons"]["me_exon"],
+        # config["reduced_gtf"]["me"],
+        # config["reduced_gtf"]["exon"],
+        # config["reduced_gtf"]["me_exon"]
         # expand("simulation/analysis/removed_exon_truth/removed_{removed_exon}_summary_table.txt", removed_exon = config["reduced_exons"]),
         # expand("simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt", removed_exon = config["reduced_exons"])
-
-
-
+        expand("simulation/analysis/filtered_SJ/novel_exons_reduced_{which_reduced_gtf}_{test_dirnames}.txt",
+        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
 
 ##################
 
