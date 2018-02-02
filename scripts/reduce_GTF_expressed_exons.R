@@ -17,8 +17,8 @@ OUTDIR <- dirname(OUTFILE_ME)
 
 
 
-GTF <- "annotation/Homo_sapiens.GRCh37.85_chr19_22.gtf"
-EXPR <- "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
+# GTF <- "annotation/Homo_sapiens.GRCh37.85_chr19_22.gtf"
+# EXPR <- "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
 
 # # OUTFILE_ME <- "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me.gtf"
 # # OUTFILE_EXON <- "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_exon.gtf"
@@ -212,7 +212,7 @@ get_removed_exons_summary <- function(ind, e, df, anno, exons){
 	df$lend <- ifelse(me_ind - 1 > 0 , end(trans)[me_ind -1], NA)  ## end of left exon
 	df$rstart <- ifelse(me_ind + 1 <= length(trans) , start(trans)[me_ind + 1], NA) ## start of right exons
 
-	## number of overlapping exons (same start, end coordinates or overlappign with different ends)
+	## number of overlapping exons (same start, end coordinates or overlapping with different ends)
 	exons <- subsetByOverlaps(exons, to_remove_all,  type = "equal", invert = TRUE) # remove the exon from the annotation
 	olap <- findOverlaps(e, exons)
 	
@@ -236,10 +236,10 @@ get_removed_exons_summary <- function(ind, e, df, anno, exons){
 me_summary <- as.data.frame(to_remove_me_all)[,c("seqnames", "start", "end", "width", "strand", "gene_id", "transcript_id", "exon_id", "count_reads")]
 me_summary$lend <- NA
 me_summary$rstart <- NA
-me_summary$unique_exon <- NA
-me_summary$shared_exon_start <- 0
-me_summary$shared_exon_end <- 0
-me_summary$exon_overlap <- 0
+me_summary$unique_exon <- NA  ## is the removed exon overlapping any other exon, True or False
+me_summary$shared_exon_start <- 0 ## number of exons that have the same start as the removed exon 
+me_summary$shared_exon_end <- 0  ## number of exons that have the same end as the removed exon
+me_summary$exon_overlap <- 0  ## exon overlapping with the removed exon, but with different start and end
 
 for(i in 1:nrow(me_summary)){
 	me_summary[i,] <- get_removed_exons_summary(i, e = to_remove_me_all[i], df = me_summary[i,], anno = gtf, exons = unique(exons))
