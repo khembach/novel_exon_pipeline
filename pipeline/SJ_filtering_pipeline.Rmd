@@ -1,0 +1,792 @@
+---
+title: "Exon prediction"
+author: "Katharina Hembach"
+date: "2/20/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# BAM_junctions <- TRUE
+BAM_junctions <- FALSE ## using the SJ.out.tab junctions
+```
+
+## Reading data
+
+First, we read in the files:
+
+```{r}
+suppressMessages(library(rtracklayer))
+suppressMessages(library(data.table) )
+suppressMessages(library(GenomicFeatures))
+suppressMessages(library(GenomicAlignments))
+suppressMessages(library(dplyr))
+
+# GTF <- "../simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me_exon.gtf"
+# SJFILE <- "../simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_SJ.out.tab"
+# BAM <- "../simulation/mapping/STAR/me/outSJfilterOverhangMin6/pass2_Aligned.out_s.bam"
+
+GTF <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me_exon.gtf"
+SJFILE <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_SJ.out.tab"
+# SJFILE <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6/pass2_SJ.out.tab"
+
+BAM <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_Aligned.out_s.bam"
+# BAM <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6/pass2_Aligned.out_s.bam"
+
+gtf <- import(GTF)
+```
+
+We recover junctions that were removed from the SJ.out.tab file using the CIGAR string in each read.
+
+```{r, eval = BAM_junctions}
+OUTFILE <- "/Volumes/Shared/kathi/microexon_pipeline/pipeline/test_BAM_junctions/novel_exons_outSJfilterOverhangMin6_BAM_junctions.txt"
+
+# CIGAR String:
+# M = match
+# N = Skipped region; a region of nucleotides is not present in the read
+param <- ScanBamParam(what = c("flag")) 
+
+### read in the reads as pairs and extract the junctions seperately for the first and last read in each pair
+## This allows us to infer the strand of the junction
+## first read --> junction strand is the inverse
+## last read --> junction strand is the read strand
+## our data comes from Illumina HiSeq 2000 (stranded TruSeq libary preparation with dUTPs ) --> strandMode = 2
+all_reads <- readGAlignmentPairs(BAM, index = BAM, param=param, strandMode = 2, use.names=TRUE)
+
+## extract all "N" ranges = the skipped regions = splice junctions
+all_reads_first <- GenomicAlignments::first(all_reads)
+all_reads_first <- all_reads_first[ which( grepl("N",cigar(all_reads_first)) ) ]
+
+cr_first <- cigarRangesAlongReferenceSpace(cigar = cigar(all_reads_first), flag = mcols(all_reads_first)$flag, pos = start(all_reads_first), ops = "N")
+names(cr_first) <- names(all_reads_first)
+
+## add a column with the qname
+cr_first <- as.data.table( unlist(cr_first) )
+# names(cr_first)[4] <- "qname"
+## join the ranges with the reads to get the seqname and strand
+m <- match(cr_first$names, names(all_reads_first))
+cr_first[, seqnames := as.vector(seqnames(all_reads_first[m]))]
+cr_first[, strand := as.vector(strand(all_reads_first[m]))]
+
+cr_first[, strand := ifelse(strand == "-", "+", "-")] ## reverse the strand, because the last read in pair determines the strand of the junction
+
+### last read in pair
+all_reads_last <- GenomicAlignments::last(all_reads)
+all_reads_last <- all_reads_last[ which( grepl("N",cigar(all_reads_last)) ) ]
+
+cr_last <- cigarRangesAlongReferenceSpace(cigar = cigar(all_reads_last), flag = mcols(all_reads_last)$flag, pos = start(all_reads_last), ops = "N")
+names(cr_last) <- names(all_reads_last)
+
+## add a column with the qname
+cr_last <- as.data.table( unlist(cr_last))
+# names(cr_last)[4] <- "qname"
+## join the ranges with the reads to get the seqname and strand
+m <- match(cr_last$names, names(all_reads_last))
+cr_last[, seqnames := as.vector(seqnames(all_reads_last[m]))]
+cr_last[, strand := as.vector(strand(all_reads_last[m]))]
+
+cr <- merge(cr_first, cr_last, all=TRUE)  ## merge the two list and get rid of duplicates from the first and last read
+cr <- cr[,.(.N), by = .(start, end, seqnames, strand) ] ## count the occurrence of each junction
+names(cr) <- c("start", "end", "seqnames", "strand", "unique")
+
+
+## compare the skipped regions from the reads with the SJ.out.tab file
+## Nearly all regions should be present in the file
+# sj <- fread(SJFILE)
+# colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+# #strand: (0: undefined, 1: +, 2: -)
+# sj$strand[sj$strand==0] <- "*"
+# sj$strand[sj$strand==1] <- "+"
+# sj$strand[sj$strand==2] <- "-"
+
+## there are a few junctions that have an undefined strand in SJ.out.tab, but a strand in the cigar
+## most of them are wrongly mapped reads, we will trust the SJ.out.tab strand adn ignore the strand in the merging
+
+## which ranges are not in the SJ file and which ranges are missing among the cigar ranges?
+# suppressMessages(library(dplyr))
+# cr$seqnames <- as.numeric(cr$seqnames)
+# common <- merge(sj, cr, by = c("start", "end", "seqnames")) ## all junctions from SJ.out.tab file are recovered from the BAM file
+# missing_cr <- anti_join(cr, sj,  by = c("start", "end", "seqnames")) ## 103 junctions are in cr but not in sj
+## the read count from SJ.out.tab and the BAM junctions are identical
+
+sj <- cr
+
+#### Many of the missing junctions are wrong junctions where a read splices over multiple genes
+## most of them have a read count of 1
+
+## we need to filter out all junctions that span more than one gene!
+dim(sj)
+head(sj)
+```
+
+
+Alternatively, we can use the junctions from the SJ.out.tab file.
+
+```{r, eval = !BAM_junctions}
+OUTFILE <- "/Volumes/Shared/kathi/microexon_pipeline/pipeline/test_BAM_junctions/novel_exons_outSJfilterOverhangMin6_SJ_out.txt"
+
+sj <- fread(SJFILE)
+# colnames(sj) <- c("chr", "first", "last", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+
+#strand: (0: undefined, 1: +, 2: -)
+sj$strand[sj$strand==0] <- "*"
+sj$strand[sj$strand==1] <- "+"
+sj$strand[sj$strand==2] <- "-"
+
+# filter out all sj with annotated==0, because the 2nd pass mapping is only for quantification and not for discovery (they are most likely artifacts!
+## 0: unannotated, 1: annotated, NA: missing junction in SJ.out.tab
+sj <- sj[! which( sj$annotated == 0) , ] 
+```
+
+## Junction Filtering
+
+Get a list of all annotated introns per transcript:
+
+```{r }
+## Extract introns from the gtf file
+# txdb <- makeTxDbFromGFF(GTF, format="gtf") ## load gene model from GTF file
+
+exons <- gtf[mcols(gtf)$type =="exon", ]
+txdb <- makeTxDbFromGRanges(exons)
+
+## get all annotated introns 
+inbytx <- intronsByTranscript(txdb, use.names=TRUE)
+introns <- unique(unlist(inbytx))
+head(introns)
+```
+
+Remove all annotated SJs:
+We cannot use the "annotated" column, because in the 2-pass alignment, all SJ from the first pass are labeled as annotated even if they are not in the GTF file. We overlap introns and SJ to filter out all annotated SJs.
+```{r}
+# sj.gr <- GRanges(seqnames=sj$chr, ranges=IRanges(start=sj$first, end=sj$last), strand=sj$strand, motif=sj$motif, annotated=sj$annotated, unique=sj$unique, mutimapping=sj$mutimapping, maxoverhang=sj$maxoverhang)
+sj.gr <- GRanges(sj)
+sj.ann <- subsetByOverlaps(sj.gr, introns, type="equal")  ## all annotated SJ
+sj.unann <- sj.gr[!(sj.gr %in% sj.ann)]   ## all unannotated SJ
+sj.ann
+sj.unann
+## filter out all junctions with less than x reads
+# sj.unann <- mcols(sj.unann)$unique >= x
+```
+
+We remove all novel junctions that do not touch an annotated exon on the same strand: (the SJ starts and ends at the first and last nucleotide of the intron)
+```{r}
+sj.unann <- sj.unann[(start(sj.unann)-1) %in% end(exons) | (end(sj.unann)+1) %in% start(exons),]
+```
+
+We want to know which side of the SJ is touched by an exon. If both ends touch an exon, then both exons must be part of the same gene.
+
+```{r}
+## Which side of the sj is touched by an exon?
+## return: a string that defines which side of the sj is toughing an exon: both sides, start or end of sj
+sj_touching_exon <- function(sj, exons){
+  s <- which((start(sj)-1) == end(exons) ) 
+  s <- exons[s,]   ## all touching exons at start of sj
+  s <- s[strand(s) == strand(sj),] ## all touching exons with same strand
+
+  e <- which((end(sj)+1) == start(exons))  
+  e <- exons[e]   ## all touching exons at end of sj
+  e <- e[strand(e) == strand(sj),]
+
+  if( length(s) >0 ){
+    if(length(e) >0){
+      if(any( mcols(s)$gene_id %in% mcols(e)$gene_id )) { ## pair of touching exons with same strand
+      "both"
+      } else NA  ## two touching exons from different genes, we don't know of them is the correct one
+    } else "start"
+  } else if(length(e) >0){
+    "end"
+    } else NA
+}
+
+touching <- sapply(sj.unann, function(x) sj_touching_exon(x, exons=exons))
+mcols(sj.unann)$touching <- touching ## either both, start or end, NA if not known
+sj.unann <- sj.unann[!is.na(touching)] 
+sj.unann
+```
+
+## Cassette exon prediction
+
+We want to know if the SJ is internal (cassette exon) or terminal (first or last exon in a transcript). We want to find pairs of junctions that correspond to novel cassette exons: First we get all SJ that are located within annotated junctions. Then, we select only the junctions that have the same start or end as the intron. Last, we need to find all introns that have both a novel start and end SJ.
+The novel SJs have to be consecutive.
+```{r}
+## We look for two consecutive novel splice junctions that are located within an annotated junction (intron) and that have the same start or end --> the 2 novel SJ could replace the annotated intron 
+##  XXX--------XXX     annotation
+##  XXX---X----XXX     novel exon 
+
+within <- subsetByOverlaps(sj.unann, introns, type="within")
+startHit <- findOverlaps(within, introns, type="start")
+endHit <- findOverlaps(within, introns, type="end")
+
+# mcols(sj.unann)$location <- NA ## internal or terminal, Na if not known
+# within_ind <- unique(queryHits(findOverlaps(sj.unann, introns, type="within")))
+# within <- sj.unann[within_ind,]
+# mcols(sj.unann)$location[within_ind[ c(queryHits(startHit), queryHits(endHit))]] <- "internal"  ## all sj that connect with their start or end to an annotated intron are "internal" splice junctions 
+
+## Try to pair SJs in the same intron
+startHit <- startHit[subjectHits(startHit) %in% subjectHits(endHit), ] ## filter out introns with only start/end
+endHit <- endHit[subjectHits(endHit) %in% subjectHits(startHit), ]
+
+starts <- split(within[queryHits(startHit)], as.factor(subjectHits(startHit)))  ## get GRanges per intron
+ends <- split(within[queryHits(endHit)], as.factor(subjectHits(endHit)))
+
+## This function matches the novel SJ within one intron and makes sure that they are consecutive
+## s: exon start junction
+## e: exon end junction
+filterSJ <- function(s, e){
+  if(all(length(s) >1, length(e)>1)){
+    print("More than one novel SJ.")
+  }
+  else{
+    if(isDisjoint(c(s, e), ignore.strand=FALSE)){  ## the two junctions are consecutive
+      return(c(as.vector(seqnames(s)), start(s)-1, end(s)+1, start(e)-1, end(e)+1, as.vector(strand(s)) ) )
+    }else{
+      return(NA)
+    }
+  }
+}
+
+if(length(starts) > 0 & length(ends) > 0 ){
+  novelExons <- lapply(names(starts), function(x) filterSJ(s = starts[[x]], e = ends[[x]]))
+  ### the introns that returned NA are the introns where the two splice junctions were not consective
+  ### --> we keep these junctions, they might be terminal ones or cases where one end of the exon is already annotated
+  matched_starts <- unlist(starts[!is.na(novelExons)]) ## the internal start junctions
+  matched_ends <- unlist(ends[!is.na(novelExons)]) ## the internal start junctions
+  sj.unann <- subsetByOverlaps(sj.unann, c(matched_starts, matched_ends), type="equal", invert=TRUE) ## remove the matched junctions from the list
+
+  novelExons <- as.data.frame(matrix(unlist(novelExons), ncol=6, byrow=T), stringsAsFactors=FALSE)
+  colnames(novelExons) <- c("seqnames", "lend", "start", "end", "rstart", "strand")
+} else{
+  novelExons <- data.frame(seqnames= character(), lend = integer(), start = integer(), end = integer(), rstart = integer(), strand = character(),stringsAsFactors=FALSE)
+}
+sj.unann
+dim(novelExons)
+head(novelExons) ## cassette exon predictions
+## lend is the end of the upstream exon and rstart is the start of the downstream exon
+```
+
+## Exon prediction from single junctions
+
+We read in the BAM file and only keep the reads that contain any of the novel SJs.
+```{r}
+## read in all reads that have mapped nucleotides in the junction region (including last and first nucleotide of the two exons)
+param <- ScanBamParam(which = sj.unann, what = c("qname"))
+reads <- readGAlignments(BAM, index = BAM, with.which_label=TRUE, param=param) ## all reads that overlap the novel SJ
+## filter out all reads with 0 junctions  --> this is still based on the read pairs!
+reads <- reads[njunc(reads) > 0,]
+
+## We filter out reads that do not contain the novel SJ with which they overlap
+junc <- junctions(reads, use.mcols=TRUE) ## list with all junctions from each reads
+# names(junc) <- mcols(junc)$which_label
+names(junc) <- 1:length(junc)
+true_junc <- as.character(mcols(junc)$which_label) ## the name of the novel SJ with which the read overlaps
+junc <- unlist(junc)
+
+df <- data.frame(read_nr = as.integer(names(junc)), junction = paste0(seqnames(junc), ":", start(junc), "-", end(junc)), true_junction = rep(true_junc, njunc(reads)), stringsAsFactors=FALSE)  ## data.frame with the coordinates of each junction and coordinates of the novel SJ
+
+reads <- reads[ df$read_nr[df$junction == df$true_junction] ] ## keep all reads that contain the novel junction
+rm(df)
+reads ## which_label is the coordinate of the novel SJ which the read contains
+```
+
+We also want to find novel exons from single SJs. All remaining novel SJs belong to either terminal exons or exons that overlap with annotated exons. Therefore, we take the reads into account: If it is a short internal exon, then there should be reads with two SJ (the novel SJ and a second SJ) that define the size of the novel exon. If it is a terminal exon, we take the end of the longest overlapping read as the exon end coordinate.
+
+First, we define a few functions that we use to predict the novel exons:
+```{r functions}
+
+#### get the start and end position of the transcript
+## This is only needed for the simulated data, because the transcript annotation still contains the removed exons in the GTF file. For real data, we can simply take to coordinates of the entry with type="transcript".
+transcript_range <- function(gr){
+  GRanges(seqnames = seqnames(gr)[1], ranges = IRanges(min(start(gr)), max(end(gr))), strand= strand(gr)[1])
+}
+
+
+#### This function computes if and which exon of a sj is terminal:
+## overlap sj with all genes
+## overlap with all transcripts of the gene:
+## take all exons per transcript and comput the start and end positions
+## remove all overlapping transcripts
+## take all exons of the remaining transcripts
+## find the exons that the SJ touches
+## either "start" or "end" of the sj, or NA
+
+## j: novel SJ
+## txdb: txdb object from the GTF file
+## gtxdb: all genes from the txdb
+## ebyTr: all exons per transript
+which_exon_terminal <- function(j, txdb, gtxdb, ebyTr){
+  ### maybe we have to include the position +-1 of the sj, in case of terminal sj that is outside of the annotated gene boundary ??
+  genes <- mcols( subsetByOverlaps(gtxdb, j) )$gene_id ## all genes that overlap with the SJ
+  tr <- transcripts(txdb, filter = list(gene_id = genes))
+  tr <- mcols( tr )$tx_name  ## all transcripts from the genes
+  e <- ebyTr[tr]
+  tr_range <- unlist(GRangesList(lapply(e, transcript_range)))  ## the range of all transcripts
+  tr <- names( subsetByOverlaps(tr_range, j, invert = TRUE) ) ## all transcripts that do NOT overlap with the sj
+  # tr <- subsetByOverlaps(transcripts(txdb, filter = list(gene_id = genes)), j, invert = TRUE) ## Use this for real data, where the transcript boundaries correspond to the start and end of the first and last exon, but it does not work for the simulated data, because the "transcript" entry in the gtf file still contains the remvoved exons!
+ 
+  e <- unlist(ebyTr[tr]) ## all exons from the non-overlapping transcripts
+  if(length(e) == 0){return(NA)} ## The SJ overlaps with all transcripts of the gene and does not connect to a terminal exon
+  ## does the sj touch any of the exons?
+  start <- start(j)-1 == end(e)
+  end <- end(j) + 1 == start(e)
+
+  return(ifelse(any(start), "start", ifelse(any(end), "end", "NA")))
+}
+
+
+## This function returns the end of the novel exon and the start of the consecutive exon
+## or the end and NA if the exon is terminal
+## if touching == "start"
+## j: junction 
+## x: mapped ranges of read
+get_exon_end_coordinate <- function(j, x){
+  exon_id <- which( (end(j)+1) == start(x) )
+  if(exon_id < length(x)) c(end(x[exon_id]), start(x[exon_id+1]) ) else c(end(x[exon_id]), NA)
+}
+
+## This function return the end of the upstream exon and the start of the novel exon
+## or NA and the start if the exon is terminal
+## if touching =="end"
+## j: junction 
+## x: mapped ranges of read
+get_exon_start_coordinate <- function(j, x){
+   exon_id <- which( (start(j)-1) == end(x) )
+   if(exon_id>1) c(end(x[exon_id-1]), start(x[exon_id])) else c(NA, start(x[exon_id]) )
+}
+
+
+
+## Determine the size of the novel exon (un-paired internal sj and terminal junctions) based on the touching exons and the reads:
+## touching == start or end:
+##    check if there are any reads with two sj --> we know the size of the exon and where it splices to
+## touching == both:
+##    complicated overlapping exons: either terminal, or overlapping exon annotations
+##    --> still check the reads, but if they do not help because it is terminal, return NA
+## 
+get_exon_boundary <- function(j, reads){
+  j_string <- toString(j)
+  j_string <- substring(j_string, 1, nchar(j_string)-2) # without the strand, because it is missing in the which_label of the reads and because the read strand is independent from sj strand ("+" forward and "-" reverse read)
+  r <- reads[ mcols(reads)$which_label == j_string ] ## all reads with the sj
+
+  r_mapped <- grglist(r, order.as.in.query=FALSE) ##this are the mapped ranges of each read, from left to right (independent of strand)
+  # r_mapped <- r_mapped[ unlist(lapply(r_mapped,length)) > 2 ]## all reads with at least 2 sj
+
+  # rj <- junctions(r)
+  #   ## filter out all reads with only one junction
+  # rj_multi <- unlist(lapply(rj,length)) > 1
+  # rj <- rj[rj_multi]
+
+  if(mcols(j)$touching == "start"){  ## the start of the novel SJ touches an annotated exon
+  ##    X---X        novel junction
+  ##  xxx---xx----x  read
+  ##         X----X  want to find 
+  coord <- unique(t(sapply(r_mapped, function(x) get_exon_end_coordinate(j = j, x = x)) ))
+  ## if there are reads with a second splice junctions, we know the start coordinates of the consecutive exon
+  ## if not, then we do not even know the end of the novel exon, so we simply take the lngest read --> max end coordinatecd
+  c(as.vector( seqnames(j) ), 
+    if( any( !is.na(coord[,2]) )) c(start(j)-1, end(j)+1, coord[!is.na(coord[,2]),] ) 
+    else c(start(j)-1, end(j)+1, max(coord[,1]), NA), 
+    as.vector(strand(j)) )
+  }else if(mcols(j)$touching == "end"){
+    ##         X----X   novel junction
+    ##   xx---xx----xx  read
+    ##    X---X         want to find
+    coord <- unique( t(sapply(r_mapped, function(x) get_exon_start_coordinate(j = j, x = x)) ) )
+    ## matrix with two columns: lend start
+    ## if there are reads with a second splice junctions, we know the end coordinates of the previous exon
+    ## if not, then we do not even know the start of the novel exon, so we simply take the longest read --> min start coordinate
+    c(as.vector( seqnames(j) ), 
+      if( any( !is.na(coord[,1]) ) ) c(coord[!is.na(coord[,1]),], start(j)-1, end(j)+1 ) 
+      else c(NA, min(coord[,2]), start(j)-1, end(j)+1 ), 
+      as.vector( strand(j) ) )
+  }else{
+    ##     X---X       novel junction
+    ##         xxxxx   annotated exon
+    ##  xxxx           annotated exon    
+    ##    nn---xxxxx   possible transcript with novel exon nn at the start of the SJ
+    ##  xxxx---nn      possible transcript with novel exon nn at the end of the SJ
+
+    ## We do not know if there is a novel exon and if yes, which side of the novel sj it connects to.
+    ## The exon is most likely a terminal exon, because otherwise we would have identified it as an internal exon
+    ## --> look at the reads, maybe they have two splice junctions and help us to determine the boundaries of the novel exon.
+     
+    ## Try to find the coordinates of the exon at the start of the sj:
+    start_coord <- unique( t(sapply(r_mapped, function(x) get_exon_start_coordinate(j = j, x = x)) ) )
+    # start_coord <- start_coord[ !is.na(start_coord[,1]) , ,drop=FALSE]
+
+    ## Try to find coordinates of the exon at the end of the sj
+    end_coord <- unique(t(sapply(r_mapped, function(x) get_exon_end_coordinate(j = j, x = x)) ))
+    # end_coord <- end_coord[ !is.na(end_coord[,2]),  ,drop=FALSE]
+
+    ## If any of the two returned two coordinates, we take these as the exon prediction
+    if(any( !is.na(start_coord[,1]) ) ){
+      if(any( !is.na(end_coord[,2]) )){ ## we found exon coordinates at both ends of the sj
+      rbind(   
+        c(as.vector( seqnames(j) ), 
+          c(start_coord[ !is.na(start_coord[,1]) ,], start(j)-1, end(j)+1 ), 
+          as.vector( strand(j) ) ),
+        c(as.vector( seqnames(j) ), 
+          c(start(j)-1, end(j)+1, end_coord[ !is.na(end_coord[,2]), ] ),
+          as.vector( strand(j) ) )
+        )
+      } else { ## novel exon at the start of the SJ
+      c(as.vector( seqnames(j) ), 
+          c(start_coord[ !is.na(start_coord[,1]) ,], start(j)-1, end(j)+1 ), 
+          as.vector( strand(j) ) )
+      }
+    } else if(any( !is.na(end_coord[,2]) )){  ## novel exon at the end of the SJ
+       c(as.vector( seqnames(j) ), 
+          c(start(j)-1, end(j)+1, end_coord[ !is.na(end_coord[,2]), ] ),
+          as.vector( strand(j) ) )
+    } else { ## We did not find a novel exon yet
+      ## Check if it could be a terminal exon --> is any of the touching exons the first or last in the transcript? 
+      ## --> if yes, the SJ is terminal -->  determine the exon end from the max read end
+      ## if not terminal, then return NA, because there is no way that we can determine the coordinates of the touching exons 
+      ## --> error in reduction of GTF?
+
+      ## is on of the exons terminal?
+      terminal <- which_exon_terminal(j, txdb = txdb, gtxdb = gtxdb, ebyTr=ebyTr)
+
+      if(is.na(terminal)){ ## We do not have enough information to infer the exon coordinates, ignore this novel SJ
+        c(as.vector( seqnames(j) ), 
+          c(NA, NA, NA, NA), 
+          as.vector( strand(j) ) )
+      } else if(terminal == "start"){
+        ## The start of the SJ is connected to the transcript --> terminal exon is at the end of the sj
+        ## take maximal exon size from end_coord
+        # start_coord <- start_coord[ !is.na(start_coord[,1]) , ,drop=FALSE]
+        c(as.vector( seqnames(j) ), 
+          c(start_coord[ which.min(start_coord[,2]), ], start(j)-1, end(j)+1 ), 
+          as.vector( strand(j) ) )
+      } else if(terminal == "end"){
+        ## The end of the sj is connected to transcript --> terminal exon is at the start of the sj
+        ## take maximial exon size from start_coord
+        # end_coord <- end_coord[ !is.na(end_coord[,2]),  ,drop=FALSE]
+        c(as.vector( seqnames(j) ), 
+          c(start_coord[ which.min(start_coord[,2]), ], start(j)-1, end(j)+1 ), 
+          as.vector( strand(j) ) )
+      } else{
+        c(as.vector( seqnames(j) ), 
+          c(NA, NA, NA, NA), 
+          as.vector( strand(j) ) )
+      }
+    }
+  }
+}
+
+```
+
+Now we can predict novel exons from the single SJ:
+```{r}
+
+ebyTr <- exonsBy(txdb, by = "tx", use.names = TRUE)  ## exons per transcript
+gtxdb <- genes(txdb)  ## all gene ranges
+
+### determine the exon boundaries of all remaining sj (terminal or novel exon overlapping annotated one)
+res <- as.data.frame( t( sapply(sj.unann, function(x) get_exon_boundary(x, reads= reads)) ), stringsAsFactors=FALSE  )
+colnames(res) <- c("seqnames", "lend", "start", "end", "rstart", "strand")
+res <- res[ rowSums(is.na(res[,c("lend", "start", "end", "rstart")])) <4, ] ## remove all rows with only NA
+head(res)
+
+if(nrow(res)>0){
+  ## combine the results from the internal sj with this
+  novelExons <- rbind( novelExons, res)
+} 
+
+dim(novelExons)
+novelExons ## This is our final list of predicted exons
+```
+
+We write the predictions to the output file.
+```{r}
+write.table(novelExons, OUTFILE, row.names=FALSE, quote=FALSE, sep="\t"  ) 
+```
+
+From this final list, how many are true, how many are Fps?  And, how many reads support each one?  Like, could we make an ROC-like curve according to something like depth to parameterise the curve?  And, plus that classification of easy/medium/hard?
+
+First, we count the minimal number of reads over any of the junctions that splice to the novel exon
+```{r}
+OUTDIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/exon_prediction_performance/PR/"
+
+## For each of the predictions, get the number of unique reads of the two junctions and take the minimum of the two values
+## merge the prediction with the SJ.out.tab and save the number of unique reads for the left and right junction
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+novelExons$seqnames <- as.integer(novelExons$seqnames)
+
+## convert the columns to integer instead of character
+id <- c("seqnames", "lend", "start", "end", "rstart")
+novelExons[,id] <- as.integer(unlist(novelExons[,id]))
+
+## add the read counts for the left and right junction
+novelExons <- novelExons %>% left_join(dplyr::select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "lend" = "start", "start" = "end", "strand") ) %>% dplyr::rename(unique_left = unique  )
+novelExons <- novelExons %>% left_join(dplyr::select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "end" = "start", "rstart" = "end", "strand") ) %>% dplyr::rename(unique_right =unique  )
+## take the minimum of both
+novelExons$min_reads <- pmin(novelExons$unique_left, novelExons$unique_right, na.rm = TRUE)  
+
+
+##  list of all removed exons (the truth)
+REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
+removed <- read.table(REMOVED, header=TRUE) ## 261 removed exons
+
+#### plot Precision-Recall curve stratified by the min # of junction reads
+## For each read count cutoff, compute PR and REC --> two vectors with equal # of values
+## plot REC on the x-axis and PR on the y-axis
+
+
+## compute the precision for a given cutoff (min number of reads over sj)
+compute_pr <- function(pred, truth, cutoff){
+  p <- pred[ pred$min_reads >= cutoff,]
+  tp <- nrow( dplyr::semi_join(truth, p, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) )
+  fp <- nrow( dplyr::anti_join(p, truth, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) )
+  round( tp / (tp + fp ), 3)  ## precision
+}
+
+## compute the recall for a given cutoff (min number of reads over sj)
+compute_rec <- function(pred, truth, cutoff){
+  p <- pred[ pred$min_reads >= cutoff,]
+  tp <- nrow( dplyr::semi_join(truth, p, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) )
+  fn <- nrow( dplyr::anti_join(truth, p, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) )
+  round( tp / (tp + fn ), 3)  ## recall
+}
+
+read_cutoffs <- sort(unique(novelExons$min_reads))
+
+## PR curve
+pr <- sapply(read_cutoffs, function(x) compute_pr(novelExons, removed, x) )
+rec <- sapply(read_cutoffs, function(x) compute_rec(novelExons, removed, x) )
+
+dat <- data.frame(reads = read_cutoffs, precision = pr, recall = rec)
+
+p <- ggplot(dat, aes(x = recall, y = precision)) + geom_path(size = 1.5) + theme_bw()
+ggsave(paste0(OUTDIR, "PR.png"), p, device = "png")
+
+## PR vs reads
+p <- ggplot(dat, aes(x = reads, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+ggsave(paste0(OUTDIR, "pr_reads.png"), p, device = "png")
+
+## PR vs reads
+p <- ggplot(dat, aes(x = reads, y = recall)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+ggsave(paste0(OUTDIR, "rec_reads.png"), p, device = "png")
+
+
+## Microexons and exons
+me_truth <- removed[ removed$type == "me",]
+exon_truth <- removed[ removed$type == "exon",]
+
+rec_me <- sapply(read_cutoffs, function(x) compute_rec(novelExons, me_truth, x) )
+rec_exon <- sapply(read_cutoffs, function(x) compute_rec(novelExons, exon_truth, x) )
+
+dat_type <- data.frame(reads = read_cutoffs, microexon = rec_me, NOTmicroexon=rec_exon, precision = pr )
+dat_type_long <- gather(dat_type, key = type, value = recall, microexon, NOTmicroexon)
+
+p <-  ggplot(dat_type_long, aes(x = reads, y =recall, color = type)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+ggsave(paste0(OUTDIR, "rec_reads_exon_type.png"), p, device = "png")
+
+p <- ggplot(dat_type_long, aes(x = recall, y = precision, color = type ))  + geom_path(size = 1.5) + theme_bw() 
+ggsave(paste0(OUTDIR, "PR_exon_type.png"), p, device = "png")
+
+## Exon location: cassette and terminal exons
+cassette <- removed[ removed$terminal == FALSE,]
+terminal <- removed[ removed$terminal == TRUE,]
+
+rec_cassette <- sapply(read_cutoffs, function(x) compute_rec(novelExons, cassette, x) )
+rec_terminal <- sapply(read_cutoffs, function(x) compute_rec(novelExons, terminal, x) )
+
+dat_location <- data.frame(reads = read_cutoffs, cassette = rec_cassette, terminal=rec_terminal, precision = pr )
+dat_location_long <- gather(dat_location, key = location, value = recall, cassette, terminal)
+
+p <-  ggplot(dat_location_long, aes(x = reads, y =recall, color = location)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+ggsave(paste0(OUTDIR, "rec_reads_exon_location.png"), p, device = "png")
+
+p <- ggplot(dat_location_long, aes(x = recall, y = precision, color = location ))  + geom_path(size = 1.5) + theme_bw() 
+ggsave(paste0(OUTDIR, "PR_exon_location.png"), p, device = "png")
+
+## Exon expression: low and high expression 
+median_expression <- median(removed$count_reads)
+low_truth <- removed[ removed$count_reads < median_expression,]
+high_truth <- removed[removed$count_reads >= median_expression,]
+
+rec_low <- sapply(read_cutoffs, function(x) compute_rec(novelExons, low_truth, x) )
+rec_high <- sapply(read_cutoffs, function(x) compute_rec(novelExons, high_truth, x) )
+
+dat_expression <- data.frame(reads = read_cutoffs, low = rec_low, high=rec_high, precision = pr )
+dat_expression_long <- gather(dat_expression, key = expression, value = recall, low, high)
+
+p <-  ggplot(dat_expression_long, aes(x = reads, y =recall, color = expression)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+ggsave(paste0(OUTDIR, "rec_reads_expression.png"), p, device = "png")
+
+p <- ggplot(dat_expression_long, aes(x = recall, y = precision, color = expression ))  + geom_path(size = 1.5) + theme_bw() 
+ggsave(paste0(OUTDIR, "PR_exon_expression.png"), p, device = "png")
+
+## Exon class: easy, medium, hard to predict
+levels(removed$class)[ levels(removed$class) == "complicated" ] <- "hard"
+easy_truth <- removed[ removed$class == "easy",]
+easy_medium <- removed[ removed$class == "medium",]
+easy_hard <- removed[ removed$class == "hard",]
+
+rec_easy <- sapply(read_cutoffs, function(x) compute_rec(novelExons, easy_truth, x) )
+rec_medium <- sapply(read_cutoffs, function(x) compute_rec(novelExons, easy_medium, x) )
+rec_hard <- sapply(read_cutoffs, function(x) compute_rec(novelExons, easy_hard, x) )
+
+dat_class <- data.frame(reads = read_cutoffs, easy = rec_easy, medium=rec_medium, hard=rec_hard, precision = pr )
+dat_class_long <- gather(dat_class, key = class, value = recall, easy, medium, hard)
+
+p <-  ggplot(dat_class_long, aes(x = reads, y =recall, color = class)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+ggsave(paste0(OUTDIR, "rec_reads_class.png"), p, device = "png")
+
+p <- ggplot(dat_class_long, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() 
+ggsave(paste0(OUTDIR, "PR_class.png"), p, device = "png")
+
+
+```
+
+Compute the number of TP, FP and FN predictions
+```{r}
+
+REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
+removed <- read.table(REMOVED, header=TRUE) ## 261 removed exons
+## the unique removed exons, without the splice junctions
+removed_unique <- removed[,-which(colnames(removed) %in% c("rstart", "lend"))]
+removed_unique <- removed_unique[ rownames(unique(removed_unique[, c("seqnames", "start", "end", "strand")])),]
+removed_per_class <- split(removed, removed$class)  ## removed exons split according to classification
+## column count_reads is the simulated number of reads per exon
+
+pred <- novelExons
+pred_unique <- pred[,-which(colnames(pred) %in% c("rstart", "lend"))]
+pred_unique <- pred_unique[ rownames(unique(pred_unique[, c("seqnames", "start", "end", "strand")])),]
+
+## compute TP predictions --> all four coordinates are correct (lend, start, end, rstart)
+tp <- dplyr::semi_join(removed, pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) 
+tp_unique <- dplyr::semi_join(removed_unique, pred_unique, by = c("seqnames", "start", "end", "strand"))
+
+## compute FP predictions --> the four coordinates are not correct
+fp <- dplyr::anti_join(pred, removed, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+fp_unique <- dplyr::anti_join(pred_unique, removed_unique, by = c("seqnames", "start", "end", "strand"))
+
+## compute FN predictions --> removed exons that were not correctly predicted
+fn <- dplyr::anti_join(removed, pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+fn_unique <- dplyr::anti_join(removed_unique, pred_unique, by = c("seqnames", "start", "end", "strand"))
+
+## per class: easy, medium, comlicated
+tp_easy <- dplyr::semi_join(removed_per_class[["easy"]], pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) 
+tp_medium <- dplyr::semi_join(removed_per_class[["medium"]], pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) 
+tp_complicated <- dplyr::semi_join(removed_per_class[["complicated"]], pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) 
+
+fn_easy <- dplyr::anti_join(removed_per_class[["easy"]], pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+fn_medium <- dplyr::anti_join(removed_per_class[["medium"]], pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+fn_complicated <- dplyr::anti_join(removed_per_class[["complicated"]], pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+
+## plot the %TP together with the # of simulated reads per exon
+
+
+```
+
+
+
+
+Comparison of the predictions from BAM junctions and SJ.out.tab junctions:
+```{r, eval=FALSE}
+# novelExonsBam <- novelExons
+# novelExonsSJ <- novelExons
+
+novelExonsBam <-  read.table("/Volumes/Shared/kathi/microexon_pipeline/pipeline/test_BAM_junctions/novel_exons_outSJfilterOverhangMin6_BAM_junctions.txt", header=TRUE)
+novelExonsSJ <-  read.table("/Volumes/Shared/kathi/microexon_pipeline/pipeline/test_BAM_junctions/novel_exons_outSJfilterOverhangMin6_SJ_out.txt", header=TRUE)
+  
+
+REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
+removed <- read.table(REMOVED, header=TRUE) ## 261 removed exons
+## the unique removed exons, without the splice junctions
+removed_unique <- removed[,-which(colnames(removed) %in% c("rstart", "lend"))]
+removed_unique <- removed_unique[ rownames(unique(removed_unique[, c("seqnames", "start", "end", "strand")])),]
+
+## compute the number of TP, FP and FN
+junctions_file <- c("BAM", "SJ")
+
+res <- data.frame(param = rep(NA, 2*length(junctions_file)), annotation = rep(NA, 2*length(junctions_file)), TP = rep(NA, 2*length(junctions_file)), FP = rep(NA, 2*length(junctions_file)), FN = rep(NA, 2*length(junctions_file)), TPR = rep(NA, 2*length(junctions_file)), PPV = rep(NA, 2*length(junctions_file)))
+
+predictions <- list(novelExonsBam, novelExonsBamDist0, novelExonsSJ)
+names(predictions) <- junctions_file
+
+ind <- 1
+for (p in junctions_file){
+	pred <- predictions[[p]]
+
+	pred_unique <- pred[,-which(colnames(pred) %in% c("rstart", "lend"))]
+	pred_unique <- pred_unique[ rownames(unique(pred_unique[, c("seqnames", "start", "end", "strand")])),]
+
+	## compute TP predictions --> all four coordinates are correct (lend, start, end, rstart)
+	tp <- dplyr::semi_join(removed, pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart")) 
+	tp_unique <- dplyr::semi_join(removed_unique, pred_unique, by = c("seqnames", "start", "end", "strand"))
+
+	## compute FP predictions --> the four coordinates are not correct
+	fp <- dplyr::anti_join(pred, removed, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+	fp_unique <- dplyr::anti_join(pred_unique, removed_unique, by = c("seqnames", "start", "end", "strand"))
+
+	## compute FN predictions --> removed exons that were not correctly predicted
+	fn <- dplyr::anti_join(removed, pred, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+	fn_unique <- dplyr::anti_join(removed_unique, pred_unique, by = c("seqnames", "start", "end", "strand"))
+
+	tpr <- round( nrow(tp) / (nrow(tp) + nrow(fn) ), 3)
+	tpr_unique <- round( nrow(tp_unique) / (nrow(tp_unique) + nrow(fn_unique) ), 3)
+
+	ppv <- round( nrow(tp) / (nrow(tp) + nrow(fp) ), 3)
+	ppv_unique <- round( nrow(tp_unique) / (nrow(tp_unique) + nrow(fp_unique) ), 3)
+
+	fdr <- round( nrow(fp) / (nrow(tp) + nrow(fp) ), 3)
+	fdr_unique <- round( nrow(fp_unique) / (nrow(tp_unique) + nrow(fp_unique) ), 3)
+
+	res[ind,] <- c(p, "all", nrow(tp), nrow(fp), nrow(fn), tpr, ppv)
+	res[ind + 1,] <- c(p, "unique", nrow(tp_unique), nrow(fp_unique), nrow(fn_unique), tpr_unique, ppv_unique)
+
+	ind <- ind + 2
+}
+
+# ## only on of the missing BAM junctions is correct, all others lead to wrong predictions!
+#   param annotation  TP FP  FN   TPR   PPV
+# 1   BAM        all 115 99 146 0.441 0.537
+# 2   BAM     unique 102 96  98  0.51 0.515
+# 3    SJ        all 114 56 147 0.437 0.671
+# 4    SJ     unique 102 54  98  0.51 0.654
+```
+
+
+Comparison of the junctions with and without outSJfilterDistToOtherSJmin 0 0 0 0:
+
+```{r, eval=FALSE}
+SJFILE <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_SJ.out.tab"
+SJFILE_DIST0 <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6/pass2_SJ.out.tab"
+
+sj <- fread(SJFILE_DIST0)
+colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+#strand: (0: undefined, 1: +, 2: -)
+sj$strand[sj$strand==0] <- "*"
+sj$strand[sj$strand==1] <- "+"
+sj$strand[sj$strand==2] <- "-"
+sjDist0 <- sj
+
+sj <- fread(SJFILE)
+colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+#strand: (0: undefined, 1: +, 2: -)
+sj$strand[sj$strand==0] <- "*"
+sj$strand[sj$strand==1] <- "+"
+sj$strand[sj$strand==2] <- "-"
+
+## sjDist0 contains 4 more SJ!
+# > anti_join(sjDist0, sj,  by = c("start", "end", "seqnames", "strand"))
+#   seqnames    start      end strand motif annotated unique mutimapping maxoverhang
+# 1       19  1627426  1631949      -     4         1      1           0          19   --> novel exon (true junction)
+# 2       19 36135651 36149495      +     3         1      1           0           7  --> wrong read mapping (wrong junction)
+# 3       19 56180548 56180809      +     3         1     15           0          44  --> missing novel junctions (true)
+# 4       19 58857955 58904725      +     3         1      2           0           6  --> wrong junction (too long, spanning multiple exons)
+### --> we will include this paramter for all STAR runs to make sure that we are not missing any nocel splice junctions!
+
+merge(sj, sjDist0, by = c("start", "end", "seqnames", "strand")) ## all junctions from sj are in sjDist0
+# missing_cr <- anti_join(cr, sj,  by = c("start", "end", "seqnames")) ## 103 junctions are in cr but not in sj
+
+```
+
