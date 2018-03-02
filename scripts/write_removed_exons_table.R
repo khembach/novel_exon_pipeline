@@ -7,17 +7,17 @@ library(GenomicFeatures)
 library(GenomicAlignments)
 
 
-OUTFILE <- snakemake@output
+OUTFILE <- snakemake@output[[1]]
 REMOVED_GTF <- snakemake@input[["removed_gtf"]] 
 TF <- snakemake@input[["truth"]]
 REDUCED_GTF <- snakemake@input[["reduced_gtf"]] 
 
 
 
-OUTFILE <- "simulation/analysis/removed_exon_truth/removed_me_summary_table.txt"
-REMOVED_GTF <- "simulation/reduced_GTF/removed_me.gtf"
-TF <- "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
-REDUCED_GTF <- "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me.gtf" 
+# OUTFILE <- "simulation/analysis/removed_exon_truth/removed_me_exon_summary_table.txt"
+# REMOVED_GTF <- "simulation/reduced_GTF/removed_me_exon.gtf"
+# TF <- "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
+# REDUCED_GTF <- "simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me_exon.gtf" 
 
 
 
@@ -65,13 +65,8 @@ exons_gtf <- c(reduced_exons, novel_exons)
 ## take the exons -1 and +1 exon_nr
 ## get their end and start coordinates
 ## if the exon is the first or last in the transcript
-## TODO: put NA in there????
 get_up_downstream_exon <- function(me, exons_gtf){
 	tr <- exons_gtf[mcols(exons_gtf)$transcript_id==mcols(me)$transcript_id]
-	print(me)
-	print(tr)
-	# up <- -1
-	# down <- -1
 	## if the me is the first or last exon of the transcript, the up or downstream exons will be -1
 	if(as.character(strand(me) )== "+"){
 		# print(end(tr[ mcols(tr)$exon_number==as.numeric(mcols(me)$exon_number) - 1 ] ) == NA)
@@ -83,16 +78,14 @@ get_up_downstream_exon <- function(me, exons_gtf){
 		up <- end( tr[ mcols(tr)$exon_number==(as.numeric( mcols(me)$exon_number) + 1) ] )
 		down <- start( tr[ mcols(tr)$exon_number==(as.numeric( mcols(me)$exon_number) - 1) ] )
 	}
-	print(up)
-	print(down)
-	print(c(up, down))
-	return(c(up, down))
+
+	return( c( ifelse(length(up) == 0, NA, up), ifelse(length(down) == 0, NA, down) ) )
 }
 
 
 
 res <- lapply(novel_exons, get_up_downstream_exon, exons_gtf = exons_gtf)
-print(head(res))
+# print(head(res))
 
 df$sj_up <- matrix(unlist(res), nrow=length(res), byrow=T)[,1]
 df$sj_down <- matrix(unlist(res), nrow=length(res), byrow=T)[,2]
@@ -133,9 +126,14 @@ m <- match(dfkey, tkey)
 df$count <- truth[m, "count_reads"]
 df <- unique(df)
 
+## throws an error: 
 write.table(df, file = OUTFILE, sep = "\t", row.names = FALSE, quote = FALSE)
 
+# print(head(df))
 
+# zz <- file(description=OUTFILE, "w") 
+# write.table(df, zz, sep = "\t", row.names = FALSE, quote = FALSE)
+# close(zz) 
 
 
 #### TODO !!!!! run on BAM files#####
