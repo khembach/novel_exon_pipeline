@@ -34,20 +34,21 @@ OUTFILE <- snakemake@output[["outfile"]]
 
 
 
-
 ## Reading files
 print("Reading data")
 
 gtf <- import(GTF)
 sj <- fread(SJFILE)
-colnames(sj) <- c("chr", "first", "last", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+# colnames(sj) <- c("chr", "first", "last", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+
 #strand: (0: undefined, 1: +, 2: -)
 sj$strand[sj$strand==0] <- "*"
 sj$strand[sj$strand==1] <- "+"
 sj$strand[sj$strand==2] <- "-"
 
 ##########################
-# jucntion filtering
+# junction filtering
 #########################
 
 
@@ -59,7 +60,9 @@ sj <- sj[sj$annotated != 0, ]  ## remove 6 junctions
 ## Extract introns from the gtf file
 
 ## load gene model from GTF file
-txdb <- makeTxDbFromGFF(GTF, format="gtf")
+exons <- gtf[mcols(gtf)$type =="exon", ]
+txdb <- makeTxDbFromGRanges(exons)
+# txdb <- makeTxDbFromGFF(GTF, format="gtf")
 ## get all annotated introns 
 inbytx <- intronsByTranscript(txdb, use.names=TRUE)
 introns <- unique(unlist(inbytx))
@@ -68,7 +71,9 @@ introns <- unique(unlist(inbytx))
 ## we cannot use the "annotated" column, because in the 2-pass alignment, all SJ from the first pass are treated as annotated, even if they are not in the GTF file!
 print("Filter SJ")
 
-sj.gr <- GRanges(seqnames=sj$chr, ranges=IRanges(start=sj$first, end=sj$last), strand=sj$strand, motif=sj$motif, annotated=sj$annotated, unique=sj$unique, mutimapping=sj$mutimapping, maxoverhang=sj$maxoverhang)
+# sj.gr <- GRanges(seqnames=sj$chr, ranges=IRanges(start=sj$first, end=sj$last), strand=sj$strand, motif=sj$motif, annotated=sj$annotated, unique=sj$unique, mutimapping=sj$mutimapping, maxoverhang=sj$maxoverhang)
+
+sj.gr <- GRanges(sj)
 
 ## filter out all annotated junctions
 sj.ann <- subsetByOverlaps(sj.gr, introns, type="equal") 
@@ -80,10 +85,9 @@ sj.unann <- sj.gr[!(sj.gr %in% sj.ann)]
 
 ## filter out all novel junctions that do not touch an annotated exon on the same strand
 print("Filter sj on wrong strand")
-exons <- gtf[mcols(gtf)$type =="exon", ]
 sj.unann <- sj.unann[(start(sj.unann)-1) %in% end(exons) | (end(sj.unann)+1) %in% start(exons),]
 
-## Which side of the sj is touched by and exon?
+## Which side of the sj is touched by an exon?
 ## Find all exons with the same strand as the splice junction and that touch it
 ## if both sj touch an exon, the exons must come from the same gene
 ## return: a string that defines which side of the sj is toughing an exon: both sides, start or end of sj
@@ -142,7 +146,7 @@ endHit <- endHit[subjectHits(endHit) %in% subjectHits(startHit), ]
 starts <- split(within[queryHits(startHit)], as.factor(subjectHits(startHit)))  ## get GRanges per intron
 ends <- split(within[queryHits(endHit)], as.factor(subjectHits(endHit)))
 
-## This function filters matches the novel SJ within one intron and makes sure that they are consecutive
+## This function matches the novel SJ within one intron and makes sure that they are consecutive
 filterSJ <- function(s, e){
   if(all(length(s) >1, length(e)>1)){
     print("More than one novel SJ.")
@@ -166,11 +170,19 @@ if(length(starts) > 0 & length(ends) > 0 ){
   matched_ends <- unlist(ends[!is.na(novelExons)]) ## the internal start junctions
   sj.unann <- subsetByOverlaps(sj.unann, c(matched_starts, matched_ends), type="equal", invert=TRUE)
 
-  novelExons <- as.data.frame(matrix(unlist(novelExons), ncol=6, byrow=T))
+  novelExons <- as.data.frame(matrix(unlist(novelExons), ncol=6, byrow=T), stringsAsFactors=FALSE )
   colnames(novelExons) <- c("seqnames", "lend", "start", "end", "rstart", "strand")
 } else{
-  novelExons <- data.frame(seqnames= character(), lend = integer(), start = integer(), end = integer(), rstart = integer(), strand = character())
+  novelExons <- data.frame(seqnames= character(), lend = integer(), start = integer(), end = integer(), rstart = integer(), strand = character(), stringsAsFactors=FALSE )
 }
+
+###### TODO: why is the second cassette exon of 19 56180810 56181058 not found???
+### is 56180547 56180810 not a novel SJ???
+
+#    seqnames     lend    start      end   rstart strand
+# 25       19 56180535 56180810 56181058 56185300      +
+
+
 
 
 ### find possible terminal exons
@@ -202,9 +214,8 @@ rm(df)
 
 #### find exon coordinates for all remaining sj: either terminal or overlapping annotated exons
 
-
 #### get the start and end position of the transcript
-## this is only needed for the simulated data, because the transcript annotation does still contain the removed exons
+## This is only needed for the simulated data, because the transcript annotation still contains the removed exons in the GTF file. For real data, we can simply take to coordinates of the entry with type="transcript".
 transcript_range <- function(gr){
   GRanges(seqnames = seqnames(gr)[1], ranges = IRanges(min(start(gr)), max(end(gr))), strand= strand(gr)[1])
 }
@@ -217,17 +228,23 @@ transcript_range <- function(gr){
 ## take all exons of the remaining transcripts
 ## find the exons where the sj spliced to
 ## either "start" or "end" of the sj
+
+## j: novel SJ
+## txdb: txdb object from the GTF file
+## gtxdb: all genes from the txdb
+## ebyTr: all exons per transript
 which_exon_terminal <- function(j, txdb, gtxdb, ebyTr){
   ### maybe we have to include the position +-1 of the sj, in case of terminal sj that is outside of the annotated gene boundary ??
-  genes <- mcols( subsetByOverlaps(gtxdb, j) )$gene_id 
+  genes <- mcols( subsetByOverlaps(gtxdb, j) )$gene_id ## all genes that overlap with the SJ
   tr <- transcripts(txdb, filter = list(gene_id = genes))
-  tr <- mcols( tr )$tx_name  ## all transcripts from the gene that overlaps with the sj
+  tr <- mcols( tr )$tx_name  ## all transcripts from the genes
   e <- ebyTr[tr]
   tr_range <- unlist(GRangesList(lapply(e, transcript_range)))  ## the range of all transcripts
-  tr <- names( subsetByOverlaps(tr_range, j, invert = TRUE) ) ## all transcripts that do not overlap with the sj
-  # tr <- subsetByOverlaps(transcripts(txdb, filter = list(gene_id = genes)), j, invert = TRUE) ## this works for real data, where the transcript boundaries correspond to the start and end of the first and last exon, but it does not work for the simulated data, because the "transcript" entry in the gtf file still contains the remvoved exons!! 
+  tr <- names( subsetByOverlaps(tr_range, j, invert = TRUE) ) ## all transcripts that do NOT overlap with the sj
+  # tr <- subsetByOverlaps(transcripts(txdb, filter = list(gene_id = genes)), j, invert = TRUE) ## Use this for real data, where the transcript boundaries correspond to the start and end of the first and last exon, but it does not work for the simulated data, because the "transcript" entry in the gtf file still contains the remvoved exons!
+ 
   e <- unlist(ebyTr[tr]) ## all exons from the non-overlapping transcripts
-  if(length(e) == 0){print("Sj overlapps with all transcripts of the gene."); return(NA)}
+  if(length(e) == 0){print("Sj overlaps with all transcripts of the gene."); return(NA)}
 
   ## does the sj touch any of the exons?
   start <- start(j)-1 == end(e)
@@ -237,7 +254,7 @@ which_exon_terminal <- function(j, txdb, gtxdb, ebyTr){
 }
 
 
-## This function return the end of the novel exon and the start of the consecutive exon
+## This function returns the end of the novel exon and the start of the consecutive exon
 ## or only the end if the exon is terminal
 ## if touching == "start"
 ## j: junction 
@@ -263,17 +280,16 @@ get_exon_coordinate <- function(j, x){
 
 }
 
-
-## Determine the size of the novel exon (un-paired internal sj and terminal junctions)
-## Based on the touching exons and the reads, determine the size of the novel exon:
+## Determine the size of the novel exon (un-paired internal sj and terminal junctions) based on the touching exons and the reads:
 ## touching == start or end:
-##    see if there are any reads with two sj --> know the size of the exon and where it spliced to
+##    check if there are any reads with two sj --> we know the size of the exon and where it splices to
 ## touching == both:
-##    complicated overlapping exons: either terminal, or overlapping annotated exon
-##    still check the reads, but if they do not help because it is terminal, mark as "complicated"
+##    complicated overlapping exons: either terminal, or overlapping exon annotations
+##    --> still check the reads, but if they do not help because it is terminal, return NA
+## 
 get_exon_boundary <- function(j, reads){
   j_string <- toString(j)
-  j_string <- substring(j_string, 1, nchar(j_string)-2) # without the strand, because it is missing in which_label and because the read strand is independent from sj strand ("+" forward and "-" reverse read)
+  j_string <- substring(j_string, 1, nchar(j_string)-2) # without the strand, because it is missing in the which_label of the reads and because the read strand is independent from sj strand ("+" forward and "-" reverse read)
   r <- reads[ mcols(reads)$which_label == j_string ] ## all reads with the sj
 
   r_mapped <- grglist(r, order.as.in.query=FALSE) ##this are the mapped ranges of each read, from left to right (independent of strand)
@@ -284,28 +300,22 @@ get_exon_boundary <- function(j, reads){
   # rj_multi <- unlist(lapply(rj,length)) > 1
   # rj <- rj[rj_multi]
 
-  ## find all reads with more than one junction
-  ## take the ones that have a second junction and determine the exon end based on the touching exon
-  ## check if there are more than one possible junction, if yes, return the novel found exon + surrounding exons ends
-
-  if(mcols(j)$touching == "start"){
-    ##    X---X        novel junction
-    ##  xxx---xx----x  read
-    ##         X----X  want to find
-    # print("touching start")
-    coord <- unique(t(sapply(r_mapped, function(x) get_exon_end_coordinate(j = j, x = x)) ))
-    ## if there are reads with a second splice junctions, we know the start coordinates of the consecutive exon
-    ## if not, then we do not even know the end of the novel exon, so we simply take the lngest read --> max end coordinatecd
-    c(as.vector( seqnames(j) ), 
-      if( any( !is.na(coord[,2]) )) c(start(j)-1, end(j)+1, coord[!is.na(coord[,2]),] ) 
-      else c(start(j)-1, end(j)+1, max(coord[,1]), NA), 
-      as.vector(strand(j)) )
-
+  
+  if(mcols(j)$touching == "start"){  ## the start of the novel SJ touches an annotated exon
+  ##    X---X        novel junction
+  ##  xxx---xx----x  read
+  ##         X----X  want to find 
+  coord <- unique(t(sapply(r_mapped, function(x) get_exon_end_coordinate(j = j, x = x)) ))
+  ## if there are reads with a second splice junctions, we know the start coordinates of the consecutive exon
+  ## if not, then we do not even know the end of the novel exon, so we simply take the lngest read --> max end coordinatecd
+  c(as.vector( seqnames(j) ), 
+    if( any( !is.na(coord[,2]) )) c(start(j)-1, end(j)+1, coord[!is.na(coord[,2]),] ) 
+    else c(start(j)-1, end(j)+1, max(coord[,1]), NA), 
+    as.vector(strand(j)) )
   }else if(mcols(j)$touching == "end"){
     ##         X----X   novel junction
     ##   xx---xx----xx  read
     ##    X---X         want to find
-    # print("touching end")
     coord <- unique( t(sapply(r_mapped, function(x) get_exon_start_coordinate(j = j, x = x)) ) )
     ## matrix with two columns: lend start
     ## if there are reads with a second splice junctions, we know the end coordinates of the previous exon
@@ -314,35 +324,29 @@ get_exon_boundary <- function(j, reads){
       if( any( !is.na(coord[,1]) ) ) c(coord[!is.na(coord[,1]),], start(j)-1, end(j)+1 ) 
       else c(NA, min(coord[,2]), start(j)-1, end(j)+1 ), 
       as.vector( strand(j) ) )
-
   }else{
-    ##     X---X
+    ##     X---X       novel junction
     ##         xxxxx   annotated exon
-    ##    nn---xxxxx   possible transcript with novel exon nn
-    ##  xxxx           annotated exon
-    ##  xxxx---nn      possible transcript with novel exon nn
+    ##  xxxx           annotated exon    
+    ##    nn---xxxxx   possible transcript with novel exon nn at the start of the SJ
+    ##  xxxx---nn      possible transcript with novel exon nn at the end of the SJ
 
-    # print("touching both")
-    ## we do not know if there is a novel exon and if yes, which side of the novel sj it connects to
-    ## the exon is most likely a terminal exon, because otherwise we would have identified it as an internal exon
-    ## --> look at the reads, maybe they have two splice junctions and let us identify a novel exon
-    ## if not, check if the exon might be terminal and if yes, use the longest reads to determine the exon coordinates
-    ## try to find exon coordinates of exon at the start of the sj
+    ## We do not know if there is a novel exon and if yes, which side of the novel sj it connects to.
+    ## The exon is most likely a terminal exon, because otherwise we would have identified it as an internal exon
+    ## --> look at the reads, maybe they have two splice junctions and help us to determine the boundaries of the novel exon.
+     
+    ## Try to find the coordinates of the exon at the start of the sj:
     start_coord <- unique( t(sapply(r_mapped, function(x) get_exon_start_coordinate(j = j, x = x)) ) )
-  
-  # start_coord <- start_coord[ !is.na(start_coord[,1]) , ,drop=FALSE]
+    # start_coord <- start_coord[ !is.na(start_coord[,1]) , ,drop=FALSE]
 
-
-    ## try to find coordinates of the exon at the end of the sj
+    ## Try to find coordinates of the exon at the end of the sj
     end_coord <- unique(t(sapply(r_mapped, function(x) get_exon_end_coordinate(j = j, x = x)) ))
     # end_coord <- end_coord[ !is.na(end_coord[,2]),  ,drop=FALSE]
 
-# nrow( end_coord ) > 0
-
-    ## if any of the two returned two coordinates, we take these
+    ## If any of the two returned two coordinates, we take these as the exon prediction
     if(any( !is.na(start_coord[,1]) ) ){
       if(any( !is.na(end_coord[,2]) )){ ## we found exon coordinates at both ends of the sj
-        ### TODO only return the exons combinations that are not annotated in a transcript yet
+        ### TODO only return the exon combinations that are not annotated in a transcript yet
       rbind(   
         c(as.vector( seqnames(j) ), 
           c(start_coord[ !is.na(start_coord[,1]) ,], start(j)-1, end(j)+1 ), 
@@ -351,36 +355,37 @@ get_exon_boundary <- function(j, reads){
           c(start(j)-1, end(j)+1, end_coord[ !is.na(end_coord[,2]), ] ),
           as.vector( strand(j) ) )
         )
-      } else {
+      } else { ## novel exon at the start of the SJ
       c(as.vector( seqnames(j) ), 
           c(start_coord[ !is.na(start_coord[,1]) ,], start(j)-1, end(j)+1 ), 
           as.vector( strand(j) ) )
       }
-    } else if(any( !is.na(end_coord[,2]) )){
+    } else if(any( !is.na(end_coord[,2]) )){  ## novel exon at the end of the SJ
        c(as.vector( seqnames(j) ), 
           c(start(j)-1, end(j)+1, end_coord[ !is.na(end_coord[,2]), ] ),
           as.vector( strand(j) ) )
-    } else {
-      ## if not, then check if it could be a terminal exon --> is any of the touching exons the first or last in the transcript? --> if yes, the sj  is terminal -->  determine the exon end from the max read end
-      ## if not terminal, then return NA or "complicated", because there is no way that we can determine the coordinates of the touching exons --> error in reduction of GTF
+    } else { ## We did not find a novel exon yet
+      ## Check if it could be a terminal exon --> is any of the touching exons the first or last in the transcript? 
+      ## --> if yes, the SJ is terminal -->  determine the exon end from the max read end
+      ## if not terminal, then return NA, because there is no way that we can determine the coordinates of the touching exons 
+      ## --> error in reduction of GTF?
 
       ## is on of the exons terminal?
       terminal <- which_exon_terminal(j, txdb = txdb, gtxdb = gtxdb, ebyTr=ebyTr)
-      # print(paste0("terminal: ", terminal) )
 
-      if(is.na(terminal)){ ## we have not enough information to infer the exon coordinates
+      if(is.na(terminal)){ ## We do not have enough information to infer the exon coordinates, ignore this novel SJ
         c(as.vector( seqnames(j) ), 
           c(NA, NA, NA, NA), 
           as.vector( strand(j) ) )
       } else if(terminal == "start"){
-        ## start of sj is connected to the transcript --> terminal exon is at the end of the sj
+        ## The start of the SJ is connected to the transcript --> terminal exon is at the end of the sj
         ## take maximal exon size from end_coord
         # start_coord <- start_coord[ !is.na(start_coord[,1]) , ,drop=FALSE]
         c(as.vector( seqnames(j) ), 
           c(start_coord[ which.min(start_coord[,2]), ], start(j)-1, end(j)+1 ), 
           as.vector( strand(j) ) )
       } else if(terminal == "end"){
-        ## end of sj is connected to transcript --> terminal exon is at start of the sj
+        ## The end of the sj is connected to transcript --> terminal exon is at the start of the sj
         ## take maximial exon size from start_coord
         # end_coord <- end_coord[ !is.na(end_coord[,2]),  ,drop=FALSE]
         c(as.vector( seqnames(j) ), 
@@ -401,24 +406,38 @@ ebyTr <- exonsBy(txdb, by = "tx", use.names = TRUE)  ## exons per transcript
 gtxdb <- genes(txdb)  ## all gene ranges
 
 ######## determine the exon boundaries of all remaining sj (terminal or novel exon overlapping annotated one)
-res <- as.data.frame( t( sapply(sj.unann, function(x) get_exon_boundary(x, reads= reads)) )  )
+res <- as.data.frame( t( sapply(sj.unann, function(x) get_exon_boundary(x, reads= reads)) ), stringsAsFactors=FALSE   )
 colnames(res) <- c("seqnames", "lend", "start", "end", "rstart", "strand")
 ## filter out all cases where we only have NA
 res <- res[ rowSums(is.na(res[,c("lend", "start", "end", "rstart")])) <4, ]
 
 if(nrow(res)>0){
   ## combine the results from the internal sj with this
-  print(head(res))
-  print(head(novelExons))
   novelExons <- rbind( novelExons, res)
 } 
+
+
+### Add columns with the number of reads supporting the left and right splice junction and the minimum of both 
+library(dplyr)
+novelExons$seqnames <- as.integer(novelExons$seqnames)
+
+## convert the columns to integer instead of character
+id <- c("seqnames", "lend", "start", "end", "rstart")
+novelExons[,id] <- as.integer(unlist(novelExons[,id]))
+
+## add the read counts for the left and right junction
+novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "lend" = "start", "start" = "end", "strand") ) %>% rename(unique_left =unique  )
+novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "end" = "start", "rstart" = "end", "strand") ) %>% rename(unique_right =unique  )
+
+## take the minimum of both
+novelExons$min_reads <- pmin(novelExons$unique_left, novelExons$unique_right, na.rm = TRUE)  
+
+
 ## Save the novel found junctions to file (start1, end1, start2, end2)
 # write.table(novelExons, OUTFILE, row.names=FALSE, quote=FALSE, sep="\t")
 
 print("Write out results")
-
 zz<-file(description=OUTFILE,"w") 
-print(zz)
 write.table(novelExons, zz, row.names=FALSE, quote=FALSE, sep="\t"  ) 
 close(zz) 
 
