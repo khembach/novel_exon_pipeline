@@ -40,6 +40,7 @@ STAR_PARAMS_DIRNAME = ["default", "default_2_pass", "outSJfilterOverhangMin9", "
 include: "rules/rsem_simulation.smk"
 include: "rules/mapping.smk"
 include: "rules/predict_novel_splicing_events.smk"
+include: "rules/quantification.smk"
 
 
 rule all:
@@ -57,8 +58,17 @@ rule all:
         # config["reduced_gtf"]["me_exon"]
         # expand("simulation/analysis/removed_exon_truth/removed_{removed_exon}_summary_table.txt", removed_exon = config["reduced_exons"]),
         # expand("simulation/analysis/removed_exon_truth/{removed_exon}_truth.txt", removed_exon = config["reduced_exons"])
-        expand("simulation/analysis/filtered_SJ/novel_exons_reduced_{which_reduced_gtf}_{test_dirnames}.txt",
+        # expand("simulation/analysis/filtered_SJ/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # expand("simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        expand("simulation/transcriptome/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.fasta",
         which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # expand("simulation/quantification/Salmon/{which_reduced_gtf}/{test_dirnames}/quant.sf",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # # expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = "me_exon",
+        # test_dirnames = "outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6", bam_name = ["Aligned.out", "pass2_Aligned.out"])
+
 
 ##################
 
