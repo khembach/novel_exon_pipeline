@@ -62,12 +62,16 @@ rule all:
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # expand("simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
-        expand("simulation/transcriptome/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.fasta",
-        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # expand("simulation/transcriptome/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.fasta",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # expand("simulation/quantification/Salmon/{which_reduced_gtf}/{test_dirnames}/quant.sf",
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # # expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = "me_exon",
         # test_dirnames = "outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6", bam_name = ["Aligned.out", "pass2_Aligned.out"])
+        expand("simulation/analysis/derived_Salmon_counts/{which_reduced_gtf}/{test_dirnames}/salmon_coverage_count.txt",
+        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+
+
 
 
 ##################
@@ -104,6 +108,7 @@ rule reduce_GTF:
         gtf=GTF,
         truth = "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
     output:
+        expand("simulation/reduce_GTF/removed_{removed_exon}_unique.txt", removed_exon = config["reduced_exons"]),
         list(config["reduced_exons"].values()),
         me = config["reduced_gtf"]["me"],
         exon = config["reduced_gtf"]["exon"],
@@ -131,9 +136,13 @@ rule removed_exons_truth:
 #     script:
 #         "scripts/write_removed_exons_table.R"
 
-
-
-
+rule classify_removed_exons:
+    input:
+        removed = "simulation/reduced_GTF/removed_{removed_exon}_unique.txt"
+    output:
+        outfile = "simulation/reduced_GTF/removed_{removed_exon}_unique_classified.txt"
+    script:
+        "scripts/classify_removed_exons.R"
 
 
 ##################

@@ -3,15 +3,19 @@
 ## "medium": novel cassette exons with only 1 novel splice junction
 ## "complicated": novel exon without a novel splice junction, because its ends overlap with annotated exons
 
-#### TOD what about the terminal exons? if their only junction is already annotated they should be classified as complicated and not medium!!!
+#### What about the terminal exons? if their only junction is already annotated they should be classified as complicated and not medium!!!
 ## or should all of them be medium??
 
 
-ME_EXON <- "simulation/reduced_GTF/removed_microexons_exons_unique.txt"
-# ME <- ""
-# EXON <- ""
+REMOVED <- snakemake@input[["removed"]]
+OUTFILE <- snakemake@output[["outfile"]]
 
-removed <- read.table(ME_EXON, header=TRUE) ## 261 removed exons
+print(REMOVED)
+
+# REMOVED <- "simulation/reduced_GTF/removed_microexons_exons_unique.txt"
+
+
+removed <- read.table(REMOVED, header=TRUE) ## 261 removed exons
 
 removed$type <- ifelse(removed$width <= 27, "me", "exon")
 removed$class <- ifelse(removed$unique_exon, "easy", NA)
@@ -67,4 +71,7 @@ exon_unique <- removed_unique[removed_unique$width > 27,]
 #           8          49          43
 
 
-write.table(removed, "simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt", sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(removed, OUTFILE, sep = "\t", row.names = FALSE, quote=FALSE )
+
+# write.table(removed, "simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt", sep = "\t", row.names = FALSE, quote=FALSE )
+

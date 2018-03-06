@@ -89,10 +89,6 @@ tr_ids <- apply(as.data.frame(exon_pred) , 1, function(x) get_transcripts(x, exo
 
 
 
-
-
-### 117 and 119 are wrong prediction, the second junction is new, but the first one is wrong and the novel exon is already in the gtf file!!
-
 ## Make a new transcript with the novel exon
 ## copy all entries (only exons?)
 ## take one exon and replace the location

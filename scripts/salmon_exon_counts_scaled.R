@@ -23,9 +23,10 @@ library(viridis)
 
 GTF <- snakemake@input[["gtf"]]
 tf <- snakemake@input[["truth"]]
+rf <- snakemake@input[["removed"]]
 qf <- snakemake@input[["quant"]]
 fldgz <- snakemake@input[["fldgz"]]
-SalmonOutput <- snakemkae@output[[1]]
+SalmonOutput <- snakemake@output[["outdir"]]
 
 
 # GTF <- "/home/Shared/kathi/microexon_pipeline/simulation/reduced_GTF_with_predicted_exons/me_exon/GRCh37.85_chr19_22_novel_exons_outSJfilterOverhangMin6.gtf"
@@ -65,10 +66,11 @@ removed_exon_loc <- unique( paste0(removed$seqnames[exon_id], "_", removed$start
 
 ### Compute the mean fragment length from the Salmon auxilliary files
 ## fld.gz: This file contains an approximation of the observed fragment length distribution. It is a gzipped, binary file containing integer counts. The number of (signed, 32-bit) integers (with machine-native endianness) is equal to the number of bins in the fragment length distribution (1,001 by default — for fragments ranging in length from 0 to 1,000 nucleotides).
-if(!file.exists( file.path(SalmonOutput, basename(fldgz)) ) ){
-    system(paste0("gunzip -c ",fldgz, ".gz > ", file.path(SalmonOutput, basename(fldgz) )) )
-}
-fld <- file.path(SalmonOutput, basename(fldgz) )
+# if(!file.exists( file.path(SalmonOutput, "fld") ) ){
+#     system(paste0("gunzip -c ",fldgz, " > ", file.path(SalmonOutput, "fld" )) )
+# }
+system(paste0("gunzip -c ",fldgz, " > ", file.path(SalmonOutput, "fld" )) )
+fld <- file.path(SalmonOutput, "fld" )
 
 flBins <- readBin(fld, integer(), n=1001, signed=TRUE)
 bins <- 0:1000
