@@ -1,3 +1,6 @@
+genome:
+    "/home/Shared/data/seq/microexon_simulation/GRCh37.82/genome/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
+
 chromosomes:
     - 19
     - 22
@@ -27,6 +30,7 @@ star_param:
     outSJfilterCountTotalMin3: "--outSJfilterCountTotalMin 3 3 3 3"
     scoreGenomicLengthLog2scale0: "--scoreGenomicLengthLog2scale 0"
     alignSJoverhangMin3: "--alignSJoverhangMin 3"
+    # outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6: "--outSJfilterDistToOtherSJmin 0 0 0 0 --outSJfilterOverhangMin 30 6 6 6"
 
 tophat_param:
     default: ""
@@ -37,4 +41,4 @@ tophat_param:
 eqp: "/home/kathi/software/EQP-QM-master"
 
 ## directory with EQP setup files
-eqp_setup: "EQP_sequp/"
+eqp_setup: "reference/EQP_setup"

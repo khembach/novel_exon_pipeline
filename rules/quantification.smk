@@ -63,37 +63,86 @@ rule derived_Salmon_counts:
 
 
 
+###################
+
+# EQP setup
+
+###################
+## Rules for the exon quantification with EQP and featureCounts
+rule EQP_setup:
+    input:
+        gtf = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf"
+    output:
+        config["eqp_setup"] + "/{which_reduced_gtf}/{test_dirnames}/map-files/GRCh37.85_chr19_22_novel_exons_{test_dirnames}_exon_junction.map.gz",
+        setup_dir = config["eqp_setup"] + "/{which_reduced_gtf}/{test_dirnames}"
+    conda:
+        "/home/Shared/kathi/microexon_pipeline/envs/test.yaml"  ## use python 2.7
+    shell:
+        """
+        pwd
+        python --version
+        /home/kathi/software/EQP-QM-master/eqp-setup.sh {input.gtf} {output.setup_dir}
+        """
 
 
+## the environment was installed with
+## conda create --name EQP python=2.7 samtools bedtools r numpy argparse gettext
+## and the yml file was exported from the activated environment with
+## conda env export > EQP.yml
 
-#
-#
-# ###################
-#
-# # EQP setup
-#
-# ###################
-# ## Rules for the exon quantification with EQP and featureCounts
-# rule EQP_setup:
+
+###################
+
+# EQP-QM exon quantification
+
+###################
+# -e : compute exon counts (we do not need gene and junction counts!)
+# -E int : Minimal overlap of a read with an exon [5]
+# -J INT: Minimal overlap of a read with both exons on a junction [8]
+# -s STRING: process reads as strand-specific in direction STRING (forward for orientation fr or backward for orientation rf)
+# --unambig: count only reads that can be assigned unambiguously to a single gene or exon when creating the gene or exon counts
+# --unweighted: do not use read weights in the generation of counts
+# --nosort: the alignment file is already sorted by names; do not sort it
+
+rule EQP_exon_quantification:
+    input:
+        config["eqp_setup"] + "/{which_reduced_gtf}/{test_dirnames}/map-files/GRCh37.85_chr19_22_novel_exons_{test_dirnames}_exon_junction.map.gz",  ## to make sure that the setup completed successfully
+        setup_dir = config["eqp_setup"] + "/{which_reduced_gtf}/{test_dirnames}",
+        bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
+    output:
+        "simulation/quantification/EQP/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s-exon.cnt",
+        outdir = "simulation/quantification/EQP/{which_reduced_gtf}/{test_dirnames}/"
+    conda:
+        "../envs/EQP.yaml"  ## use python 2.7
+    shell:
+        config["eqp"] + "/eqp-quantify.sh -e -E 3 -J 3 --unambig --unweighted --nosort -d {input.setup_dir} {output.outdir} {input.bam}"
+
+
+###################
+
+# FeatureCounts exon quantification
+
+###################
+
+# rule featureCounts:
 #     input:
-#         gtf = GTF,
-#     output:
-#         config["eqp_setup"]
-#     shell:
-#         expand("{eqp_dir}/eqp-setup.sh {input.gtf} {output}", eqp_dir = config["eqp"])
-#
-#
-#
-# ###################
-#
-# # EQP-QM exon quantification
-#
-# ###################
-#
-# rule EQP_exon_quantification:
-#     input:
-#         EQP_setup = config["eqp_setup"],
+#         gtf = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
 #         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
 #     output:
-#     shell:
-#         expand("{eqp_dir}/eqp-quantify.sh -E 3 -J 3 --unambig --unweighted -d {input.EQP_setup} {output.outdir} {input.bam}", eqp_dir = config["eqp"])
+#         outfile = "simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds"
+#     script:
+#         "scripts/run_featureCounts.R"
+
+
+
+###################
+
+# Comparison between featureCounts, EQP and the derived Salmon counts
+
+###################
+#
+# rule quantification_comparison:
+#     input:
+#     output:
+#     script:
+#         "scripts/comparison_ggplot_salmon.R"

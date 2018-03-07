@@ -8,10 +8,10 @@
 
 
 
-
+### TODO: how to have access to the R library?
 ### use bash login shell for execution
-shell.executable("/bin/bash")
-shell.prefix("source ~/.bashrc; ")
+# shell.executable("/bin/bash")
+# shell.prefix("source ~/.bashrc; ")
 
 ## config file
 configfile: "config.yaml"
@@ -68,10 +68,21 @@ rule all:
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # # expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = "me_exon",
         # test_dirnames = "outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6", bam_name = ["Aligned.out", "pass2_Aligned.out"])
-        expand("simulation/analysis/derived_Salmon_counts/{which_reduced_gtf}/{test_dirnames}/salmon_coverage_count.txt",
-        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # expand("simulation/analysis/derived_Salmon_counts/{which_reduced_gtf}/{test_dirnames}/salmon_coverage_count.txt",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # expand( "{eqp_setup}/{which_reduced_gtf}/{test_dirnames}/", eqp_setup = config["eqp_setup"],
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        expand("simulation/quantification/EQP/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s-exon.cnt",
+        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
 
 
+
+
+# rule test:
+#     conda:
+#         "envs/test.yaml"
+#     shell:
+#         "python --version"
 
 
 ##################
