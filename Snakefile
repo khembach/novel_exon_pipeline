@@ -72,10 +72,10 @@ rule all:
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # expand( "{eqp_setup}/{which_reduced_gtf}/{test_dirnames}/", eqp_setup = config["eqp_setup"],
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
-        expand("simulation/quantification/EQP/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s-exon.cnt",
+        # expand("simulation/quantification/EQP/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s-exon.cnt",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand("simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds",
         which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
-
-
 
 
 # rule test:

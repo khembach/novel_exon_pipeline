@@ -78,11 +78,7 @@ rule EQP_setup:
     conda:
         "/home/Shared/kathi/microexon_pipeline/envs/test.yaml"  ## use python 2.7
     shell:
-        """
-        pwd
-        python --version
-        /home/kathi/software/EQP-QM-master/eqp-setup.sh {input.gtf} {output.setup_dir}
-        """
+        config["eqp"] + "/eqp-setup.sh {input.gtf} {output.setup_dir}"
 
 
 ## the environment was installed with
@@ -124,14 +120,14 @@ rule EQP_exon_quantification:
 
 ###################
 
-# rule featureCounts:
-#     input:
-#         gtf = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
-#         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
-#     output:
-#         outfile = "simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds"
-#     script:
-#         "scripts/run_featureCounts.R"
+rule featureCounts:
+    input:
+        gtf = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
+        bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
+    output:
+        outfile = "simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds"
+    script:
+        "../scripts/run_featureCounts.R"
 
 
 
