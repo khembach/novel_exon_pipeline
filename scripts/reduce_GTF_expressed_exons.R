@@ -31,8 +31,7 @@ OUTDIR <- dirname(OUTFILE_ME)
 
 
 # OUTDIR <- "test_reduce_gtf"
-
-
+# OUTDIR <- "simulation/reduced_GTF/"
 
 
 
@@ -205,7 +204,7 @@ export(to_remove_all, file.path(OUTDIR, "removed_me_exon.gtf"))
 ## NA empty string if the exon is the first of last and there is no splice junction to the left or right
 ## input paramters:
 ## index in summary data frame, exons of interest as GRange, row of summary data frame, gtf annotation, unique set of all exons in annotation
-get_removed_exons_summary <- function(ind, e, df, anno, exons){
+get_removed_exons_summary <- function(e, df, anno, exons, removed_exons){
 	trans <- anno[which(mcols(anno)$transcript_id == mcols(e)$transcript_id & mcols(anno)$type == "exon")]  ## all exons from the transcript
 	trans <- sort(trans) # sorted with increasing coordinates (independent of transcript strand)
 	me_ind <- which(start(trans) == start(e) & end(trans) == end(e))
@@ -213,7 +212,7 @@ get_removed_exons_summary <- function(ind, e, df, anno, exons){
 	df$rstart <- ifelse(me_ind + 1 <= length(trans) , start(trans)[me_ind + 1], NA) ## start of right exons
 
 	## number of overlapping exons (same start, end coordinates or overlapping with different ends)
-	exons <- subsetByOverlaps(exons, to_remove_all,  type = "equal", invert = TRUE) # remove the exon from the annotation
+	exons <- subsetByOverlaps(exons, removed_exons,  type = "equal", invert = TRUE) # remove the exon from the annotation
 	olap <- findOverlaps(e, exons)
 	
 	if(length(olap)>0){  ## the me overlaps with another exon
@@ -230,6 +229,8 @@ get_removed_exons_summary <- function(ind, e, df, anno, exons){
 }
 
 
+####
+exons <- gtf[mcols(gtf)$type == "exon"]
 
 ### ME ####
 ## data frame with all exons that will be removed and information about the previous and sequential exon and the number of overlapping exons
@@ -242,15 +243,15 @@ me_summary$shared_exon_end <- 0  ## number of exons that have the same end as th
 me_summary$exon_overlap <- 0  ## exon overlapping with the removed exon, but with different start and end
 
 for(i in 1:nrow(me_summary)){
-	me_summary[i,] <- get_removed_exons_summary(i, e = to_remove_me_all[i], df = me_summary[i,], anno = gtf, exons = unique(exons))
+	me_summary[i,] <- get_removed_exons_summary(e = to_remove_me_all[i], df = me_summary[i,], anno = gtf, exons = unique(exons), removed_exons = to_remove_me_all)
 }
 me_summary$unique_exon <- as.logical(me_summary$unique_exon)
 
-write.table(me_summary, file = file.path(OUTDIR, "removed_microexons.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(me_summary, file = file.path(OUTDIR, "removed_me.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 ## get a list of unique splice junction combination (remove duplicate ones)
 me_summary_unique <- me_summary[, !colnames(me_summary) %in% c("exon_id", "transcript_id")]
 me_summary_unique <- unique(me_summary_unique)  ## 124 unique junctions
-write.table(me_summary_unique, file = file.path(OUTDIR, "removed_microexons_unique.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(me_summary_unique, file = file.path(OUTDIR, "removed_me_unique.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 
 
 #### EXON ####
@@ -263,15 +264,15 @@ exon_summary$shared_exon_end <- 0
 exon_summary$exon_overlap <- 0
 
 for(i in 1:nrow(exon_summary)){
-	exon_summary[i,] <- get_removed_exons_summary(i, e = to_remove_exon_all[i], df = exon_summary[i,], anno = gtf, exons = unique(exons))
+	exon_summary[i,] <- get_removed_exons_summary(e = to_remove_exon_all[i], df = exon_summary[i,], anno = gtf, exons = unique(exons), removed_exons = to_remove_exon_all)
 }
 exon_summary$unique_exon <- as.logical(exon_summary$unique_exon)
 
-write.table(exon_summary, file = file.path(OUTDIR, "removed_exons.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(exon_summary, file = file.path(OUTDIR, "removed_exon.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 ## get a list of unique splice junction combination (remove duplicate ones)
 exon_summary_unique <- exon_summary[, !colnames(exon_summary) %in% c("exon_id", "transcript_id")]
 exon_summary_unique <- unique(exon_summary_unique)  ## 107 unique junctions
-write.table(exon_summary_unique, file = file.path(OUTDIR, "removed_exons_unique.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(exon_summary_unique, file = file.path(OUTDIR, "removed_exon_unique.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 
 
 ## ME + EXON ##
@@ -284,12 +285,12 @@ me_exon_summary$shared_exon_end <- 0
 me_exon_summary$exon_overlap <- 0
 
 for(i in 1:nrow(me_exon_summary)){
-	me_exon_summary[i,] <- get_removed_exons_summary(i, e = to_remove_all[i], df = me_exon_summary[i,], anno = gtf, exons = unique(exons))
+	me_exon_summary[i,] <- get_removed_exons_summary(e = to_remove_all[i], df = me_exon_summary[i,], anno = gtf, exons = unique(exons), removed_exons = to_remove_all)
 }
 me_exon_summary$unique_exon <- as.logical(me_exon_summary$unique_exon)
 
-write.table(me_exon_summary, file = file.path(OUTDIR, "removed_microexons_exons.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(me_exon_summary, file = file.path(OUTDIR, "removed_me_exon.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 ## get a list of unique splice junction combination (remove duplicate ones)
 me_exon_summary_unique <- me_exon_summary[, !colnames(me_exon_summary) %in% c("exon_id", "transcript_id")]
 me_exon_summary_unique <- unique(me_exon_summary_unique)  ## 107 unique junctions
-write.table(me_exon_summary_unique, file = file.path(OUTDIR, "removed_microexons_exons_unique.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
+write.table(me_exon_summary_unique, file = file.path(OUTDIR, "removed_me_exon_unique.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
