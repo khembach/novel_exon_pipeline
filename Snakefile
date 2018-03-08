@@ -1,21 +1,19 @@
 #######
 ## The directory contains a .Renviron file that specifies the R library. This is necessary, because Rscript does not find the libraries without.
+
 ## Or, you can speficy the R, Rscript version and the library in the snakemake file by using the bash login shell:
+### use bash login shell for execution
+### ATTENTION: snakemake does not load conda environments if you do this!!
+# shell.executable("/bin/bash")
+# shell.prefix("source ~/.bashrc; ")
 
 ### force reexecution of everything in rule all that depends on changed files:
 # snakemake -n --forcerun $(snakemake --list-input-changes)
 # snakemake --forcerun $(snakemake --list-input-changes) --cores 24 --use-conda
 
 
-
-### TODO: how to have access to the R library?
-### use bash login shell for execution
-# shell.executable("/bin/bash")
-# shell.prefix("source ~/.bashrc; ")
-
 ## config file
 configfile: "config.yaml"
-
 
 ## data was downloaded from ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603411/SRR3192428/
 ## GEO https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2072377
@@ -74,8 +72,11 @@ rule all:
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # expand("simulation/quantification/EQP/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s-exon.cnt",
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
-        expand("simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds",
-        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        # expand("simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds",
+        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand( "simulation/analysis/mapped_junction_count/removed_{removed_exon}_unique_classified_{test_dirnames}_junc_count.txt",
+        removed_exon = config["reduced_gtf"], test_dirnames = config["star_param"])
+
 
 
 # rule test:
@@ -155,6 +156,15 @@ rule classify_removed_exons:
     script:
         "scripts/classify_removed_exons.R"
 
+
+rule mapped_junction_count:
+    input:
+        removed = "simulation/reduced_GTF/removed_{removed_exon}_unique_classified.txt",
+        bam = "simulation/mapping/STAR/{removed_exon}/{test_dirnames}/pass2_Aligned.out_s.bam"
+    output:
+        outfile = "simulation/analysis/mapped_junction_count/removed_{removed_exon}_unique_classified_{test_dirnames}_junc_count.txt"
+    script:
+        "scripts/mapped_junction_count.R"
 
 ##################
 
