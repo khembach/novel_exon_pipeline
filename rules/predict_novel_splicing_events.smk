@@ -72,3 +72,22 @@ rule transcriptome_fasta:
 #         "logs/transcriptome_fasta/{which_reduced_gtf}/{test_dirnames}.log"
 #     shell:
 #         "gffread {input.gtf} -g {input.genome} -w {output.outfile}"
+
+
+
+
+###################
+
+# Plot precision-recall curves for the predictions
+
+###################
+## output contains last plot to make sure that the script run through
+rule plot_PR_curve:
+    input:
+        removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
+        prediction = "simulation/analysis/filtered_SJ/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+    output:
+        "simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        outdir = "simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/"
+    script:
+        "../scripts/plot_PR_curve_novel_sj.R"

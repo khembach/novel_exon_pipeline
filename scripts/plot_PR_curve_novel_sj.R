@@ -1,24 +1,32 @@
-### Plot precision recall curves for the novel exons
+### Plot precision recall curves for the novel exons.
+## First, we evaluate the exons by class. Then we only evaluate the exons with at least 1 mapped junction read (all others are not expected to be predicted). 
+## Last, we we separate the exons according to their location, type or expression.
+
+
 library(dplyr)
 library(ggplot2)
 library(tidyr)
 library(data.table)
 
 
-REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
+REMOVED <- snakemake@input[["removed"]]  ## al removed exons, with mapped junction counts
+PREDICTION <- snakemake@input[["prediction"]]
+OUTDIR <- snakemake@output[["outdir"]]
+
+
+# REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
 # REMOVED <- "simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
-PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
+# PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
 # params <- c("default", "outSJfilterOverhangMin9", "outSJfilterOverhangMin6", "outSJfilterCountTotalMin3", "scoreGenomicLengthLog2scale0", "alignSJoverhangMin3")
 # PRED_PATH <- "simulation/analysis/filtered_SJ/me_exon/novel_exons_"
-OUTDIR <- "/Volumes/Shared-1/kathi/microexon_pipeline/simulation/analysis/exon_prediction_performance/PR/test/"
+# OUTDIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/exon_prediction_performance/PR/test/"
 
 
-####
 novelExons <- read.table(PREDICTION, header=TRUE, stringsAsFactors = FALSE)
 ##  list of all removed exons (the truth)
 removed <- read.table(REMOVED, header=TRUE) ## 261 removed exons
 
-#### plot Precision-Recall curve stratified by the min # of junction reads
+######## plot Precision-Recall curve stratified by the min # of junction reads
 ## label all predictions/truth: if cassette -> 4 coordinates, if right terminal: 2 coordinates; if left terminal: 2 coordinates
 novelExons$location <- "cassette"
 novelExons$location[is.na( novelExons$lend )] <- "left_terminal"
@@ -37,8 +45,7 @@ evaluate_prediction <-function(criteria, pred, truth){
 }
 
 
-## add class and true junc counts, true gene count and add the matched truth ID
-
+###### add class and true junc counts, true gene count and add the matched truth ID
 ## label all predictions with TRUE or FALSE depending if the prediction is correct or not
 cassette <- c("seqnames", "start", "end", "strand", "lend", "rstart")
 left_terminal <- c("seqnames",  "end", "strand", "lend", "rstart")
@@ -50,13 +57,6 @@ novelExons_split <- lapply(seq_along(eval_criteria), function(x) evaluate_predic
 novelExons <- unsplit(novelExons_split,  novelExons$location)
   
   
-### compute PR and RE based on the label column
-read_cutoffs <- sort(unique(novelExons$min_reads))
-
-# novelExons <- novelExons[order(novelExons$min_reads, decreasing = TRUE),]
-m <- match(novelExons$min_reads, read_cutoffs)
-
-
 ## given a table with labeled predicted exons, compute precision and recall
 compute_pr_rec <- function(novelExons, nr_removed){
   ## compute TP and FP for each min_read bin
@@ -70,23 +70,23 @@ compute_pr_rec <- function(novelExons, nr_removed){
   eval_dat
 }
 
-## all predictions, all removed exons
+####### all predictions, all removed exons
 dat_all <- compute_pr_rec(novelExons, nrow(removed))
 precision_all <- dat_all %>% select(min_reads, precision)
 
-p <- ggplot(dat_all, aes(x=recall, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1))
-ggsave(paste0(OUTDIR, "PR.png"), p, device = "png")
+p <- ggplot(dat_all, aes(x=recall, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("All removed exons")
+ggsave(paste0(OUTDIR, "PR.png"), p, device = "png") 
 
 ## PR vs reads
-p <- ggplot(dat_all, aes(x = min_reads, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+p <- ggplot(dat_all, aes(x = min_reads, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("All removed exons")
 ggsave(paste0(OUTDIR, "pr_reads.png"), p, device = "png")
 
 ## PR vs reads
-p <- ggplot(dat_all, aes(x = min_reads, y = recall)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+p <- ggplot(dat_all, aes(x = min_reads, y = recall)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("All removed exons")
 ggsave(paste0(OUTDIR, "rec_reads.png"), p, device = "png")
 
 
-##class: easy, medium, hard
+######### class: easy, medium, hard
 id_class <- split(removed$ID, removed$class)  ## all IDs that belong to a certain class
 
 dat_class <- list()
@@ -112,11 +112,62 @@ names(dat_class) <- names(id_class)
 dat_class <- rbindlist(dat_class, idcol = "class")
 dat_class <- left_join(dat_class, precision_all) ## add the corresponding precision value from all predictions 
 
-p <-  ggplot(dat_class, aes(x = min_reads, y =recall, color = class)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + geom_point()
+p <-  ggplot(dat_class, aes(x = min_reads, y =recall, color = class)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + geom_point() + ggtitle("All removed exons") 
 ggsave(paste0(OUTDIR, "rec_reads_class.png"), p, device = "png")
 
-p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() + geom_point()
+p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("All removed exons")+ ylab("precision (all exons)")
 ggsave(paste0(OUTDIR, "PR_class.png"), p, device = "png")
+
+
+
+######## We expact that the missed exons are all exons that do not have mapped junction reads and are thus impossible to predict.
+## separate all exons according to mapped number of reads crossing the SJ: 0 reads or >0 junction reads
+
+## split the exons according to the minimal number of mapped reads over each junction (0 reads or more)
+id_min_junc <- split(removed$ID, pmin(removed$count_lsj, removed$count_rsj, na.rm = TRUE) == 0)
+names(id_min_junc) <- ifelse(names(id_min_junc) == "TRUE", "no_junction_reads", "junction_reads")
+
+dat_min_junc <- list()
+for(cl in names(id_min_junc)){
+  dat_min_junc[[cl]] <- novelExons %>% filter(matched_ID %in% id_min_junc[[cl]])
+}
+
+dat_min_junc <- lapply( names(id_min_junc), function(x) compute_rec( dat_min_junc[[x]], length(id_min_junc[[x]]) ) ) ## compute recall for all classes
+names(dat_min_junc) <- names(id_min_junc)
+dat_min_junc <- rbindlist(dat_min_junc, idcol = "after_mapping")
+dat_min_junc <- left_join(dat_min_junc, precision_all) ## add the corresponding precision value from all predictions 
+
+p <-  ggplot(dat_min_junc, aes(x = min_reads, y =recall, color = after_mapping)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("Exons with >0 mapped junction reads")
+ggsave(paste0(OUTDIR, "rec_junc_read.png"), p, device = "png")
+
+p <- ggplot(dat_min_junc, aes(x = recall, y = precision, color = after_mapping))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1))  + geom_point() + ggtitle("All removed exons")+ ylab("precision (all exons)")
+ggsave(paste0(OUTDIR, "PR_junc_reads.png"), p, device = "png")
+
+
+####### From here on, we only consider the exons with at least 1 junction read
+## compute the precision for only the exons with junction reads
+removed <- removed %>% filter(pmin(removed$count_lsj, removed$count_rsj, na.rm = TRUE) > 0)  ## all exons with at least 1 junction read
+dat_all <- compute_pr_rec(novelExons, nrow(removed))
+precision_all <- dat_all %>% select(min_reads, precision)
+
+
+id_class <- split(removed$ID, removed$class)  ## all IDs that belong to a certain class
+
+dat_class <- list()
+for(cl in names(id_class)){
+  dat_class[[cl]] <- novelExons %>% filter(matched_ID %in% id_class[[cl]])
+}
+
+dat_class <- lapply( names(id_class), function(x) compute_rec( dat_class[[x]], length(id_class[[x]]) ) ) ## compute recall for all classes
+names(dat_class) <- names(id_class)
+dat_class <- rbindlist(dat_class, idcol = "class")
+dat_class <- left_join(dat_class, precision_all) ## add the corresponding precision value from all predictions 
+
+p <-  ggplot(dat_class, aes(x = min_reads, y =recall, color = class)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + geom_point()+ ggtitle("Exons with >0 mapped junction reads")
+ggsave(paste0(OUTDIR, "rec_reads_class_expr.png"), p, device = "png")
+
+p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1))+ ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
+ggsave(paste0(OUTDIR, "PR_class_expr.png"), p, device = "png")
 
 
 
@@ -133,10 +184,10 @@ dat_type <- lapply( names(id_type), function(x) compute_pr_rec( dat_type[[x]], l
 names(dat_type) <- names(id_type)
 dat_type <- rbindlist(dat_type, idcol = "type")
 
-p <-  ggplot(dat_type, aes(x = min_reads, y =recall, color = type)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+p <-  ggplot(dat_type, aes(x = min_reads, y =recall, color = type)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("Exons with >0 mapped junction reads")
 ggsave(paste0(OUTDIR, "rec_reads_exon_type.png"), p, device = "png")
 
-p <- ggplot(dat_type, aes(x = recall, y = precision, color = type ))  + geom_path(size = 1.5) + theme_bw() 
+p <- ggplot(dat_type, aes(x = recall, y = precision, color = type ))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
 ggsave(paste0(OUTDIR, "PR_exon_type.png"), p, device = "png")
 
 
@@ -155,15 +206,15 @@ dat_location <- lapply( names(id_location), function(x) compute_pr_rec( dat_loca
 names(dat_location) <- names(id_location)
 dat_location <- rbindlist(dat_location, idcol = "location")
 
-p <-  ggplot(dat_location, aes(x = min_reads, y =recall, color = location)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+p <-  ggplot(dat_location, aes(x = min_reads, y =recall, color = location)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + ggtitle("Exons with >0 mapped junction reads")
 ggsave(paste0(OUTDIR, "rec_reads_exon_location.png"), p, device = "png")
 
-p <- ggplot(dat_location, aes(x = recall, y = precision, color = location ))  + geom_path(size = 1.5) + theme_bw() 
+p <- ggplot(dat_location, aes(x = recall, y = precision, color = location ))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
 ggsave(paste0(OUTDIR, "PR_exon_location.png"), p, device = "png")
 
 
 
-###### low and high expressed exons: true count < 10, >=10
+###### low and high expressed exons: simulated number of reads below or above median
 median_expression <- median(removed$count_reads)
 id_expr <- split(removed$ID, removed$count_reads< median_expression )  ## all IDs that belong to a certain class
 names(id_expr) <- c("high", "low")
@@ -178,41 +229,10 @@ names(dat_expr) <- names(id_expr)
 dat_expr <- rbindlist(dat_expr, idcol = "expression")
 dat_expr <- left_join(dat_expr, precision_all) ## add the corresponding precision value from all predictions 
 
-p <-  ggplot(dat_expr, aes(x = min_reads, y =recall, color = expression)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
+p <-  ggplot(dat_expr, aes(x = min_reads, y =recall, color = expression)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + ggtitle("Exons with >0 mapped junction reads")
 ggsave(paste0(OUTDIR, "rec_reads_expression.png"), p, device = "png")
 
-p <- ggplot(dat_expr, aes(x = recall, y = precision, color = expression))  + geom_path(size = 1.5) + theme_bw()
+p <- ggplot(dat_expr, aes(x = recall, y = precision, color = expression))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads") + ylab("precision (all mapped exons)")
 ggsave(paste0(OUTDIR, "PR_expression.png"), p, device = "png")
-
-
-
-
-### TODO: seperate by mapped# of reads?
-## we should see that the ones with high number are all recovered, and the one with low number are not predicted!
-
-## separate all exons according to mapped number of reads crossing the SJ:
-## no reads for both junctions
-## min <5
-## min >5 ???
-
-
-## plot classes and seperate additionallly by min# mapped reads??
-## to see that the ones we are missing are all lowly expressed ones?
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

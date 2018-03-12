@@ -74,9 +74,10 @@ rule all:
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
         # expand("simulation/quantification/featureCounts/{which_reduced_gtf}/{test_dirnames}/featureCounts.rds",
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
-        expand( "simulation/analysis/mapped_junction_count/removed_{removed_exon}_unique_classified_{test_dirnames}_junc_count.txt",
-        removed_exon = config["reduced_gtf"], test_dirnames = config["star_param"])
-
+        # expand( "simulation/analysis/mapped_junction_count/removed_{removed_exon}_unique_classified_{test_dirnames}_junc_count.txt",
+        # removed_exon = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand("simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
 
 
 # rule test:
