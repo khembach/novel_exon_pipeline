@@ -18,7 +18,7 @@ rule filter_novel_SJ:
         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
     output:
         # outfile = "simulation/analysis/filtered_SJ/novel_exons_reduced_{which_reduced_gtf}_{test_dirnames}.txt"
-        outfile = "simulation/analysis/filtered_SJ/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        outfile = "simulation/analysis/filtered_SJ/two_junc_reads/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     log:
         "logs/filter_SJ/{which_reduced_gtf}_{test_dirnames}.log",
     script:
@@ -85,9 +85,9 @@ rule transcriptome_fasta:
 rule plot_PR_curve:
     input:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
-        prediction = "simulation/analysis/filtered_SJ/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        prediction = "simulation/analysis/filtered_SJ/two_junc_reads/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     output:
-        "simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
-        outdir = "simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/"
+        "simulation/analysis/exon_prediction_performance/PR/two_junc_reads/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        outdir = "simulation/analysis/exon_prediction_performance/PR/two_junc_reads/{which_reduced_gtf}/{test_dirnames}/"
     script:
         "../scripts/plot_PR_curve_novel_sj.R"
