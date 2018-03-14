@@ -452,16 +452,15 @@ two_junc_reads<- junc_reads[str_count(junc_reads$cigar, "N")==2,]
 ## we remove duplicate reads with the same junctions
 two_junc_reads <- two_junc_reads[!duplicated(two_junc_reads[,-"qname", with=FALSE]),]
 
-cigar_junc <- cigarRangesAlongReferenceSpace(cigar = two_junc_reads$cigar, flag = two_junc_reads$flag, pos = two_junc_reads$pos, ops = "N")
-names(cigar_junc) <- 1:nrow(two_junc_reads) ## index of the read
-# two_junc_reads$qname
+cigar_junc <- cigarRangesAlongReferenceSpace(cigar = two_junc_reads$cigar, 
+                                            flag = two_junc_reads$flag, 
+                                            pos = two_junc_reads$pos, 
+                                            ops = "N")
+names(cigar_junc) <- 1:nrow(two_junc_reads)
+cigar_junc_gr <- unlist(cigar_junc)
+cigar_junc_gr <- GRanges(two_junc_reads$seqnames[ as.integer( names(cigar_junc_gr) ) ], 
+                         cigar_junc_gr, two_junc_reads$strand[as.integer( names(cigar_junc_gr) )])
 
-cigar_junc<- as.data.table( unlist(cigar_junc))
-cigar_junc$names <- as.numeric(cigar_junc$names)
-# m <- match(cigar_junc$names, two_junc_reads$qname)
-cigar_junc[, seqnames := two_junc_reads$seqnames[cigar_junc$names]]
-cigar_junc[, strand := two_junc_reads$strand[cigar_junc$names]]
-cigar_junc[, seqnames:= as.integer(seqnames)]
 
 ## the "names" indicates the original read --> we want to find novel combinations of introns within a read
 
@@ -474,21 +473,31 @@ intr_gtf$transcript_id <- names(intr_gtf)
 intr_idx <- paste0(start(intr_gtf),":", end(intr_gtf),"_", mcols(intr_gtf)$transcript_id)
 intr_gtf<- intr_gtf[match(unique(intr_idx), intr_idx)] ##only keep the unnique junction-transcript_id combinations
 
+## Filter out all reads that have unannotated junctions (most of them are wrong)
+x <- unique( names(cigar_junc_gr)[ -unique(queryHits(findOverlaps(cigar_junc_gr, intr_gtf, type="equal"))) ] )
+cigar_junc_gr <- cigar_junc_gr[ !(names(cigar_junc_gr) %in% x)]
+
+
+
+## reduce the annotation to speed up the overlap calculation
+# intersect(intr_gtf, cigar_junc_gr, ignore.strand=FALSE) ## this gives us the reduced list of ranges, but we need all of them
+
 ## we compare the read junctions to annotated transcript introns
-# olap <- findOverlaps(cigar_junc_gr, intr_gtf) ## we can run it on the list?
-olap <- findOverlaps(GRanges(cigar_junc), intr_gtf, type ="equal") 
+olap <- findOverlaps(cigar_junc_gr, intr_gtf, type ="equal") 
+
+
 
 ## test is TRUE if there is a transcript that contains both junctions
-# tmp = data.frame(read = queryHits(olap), tr = names(intr_gtf[subjectHits(olap)])) %>% group_by(read,tr) %>% count(.) %>% group_by(read) %>% summarise(test=any(n==2))
-
-tmp <- data.frame(read = cigar_junc$names[queryHits(olap)], tr = names(intr_gtf[subjectHits(olap)])) %>% group_by(read,tr) %>% count(.) %>% group_by(read) %>% summarise(test=any(n==2))
-
-tmp %>% filter(test==F) ## all reads that have unannotated junction combinations: 2,297
-tmp %>% filter(test==T)  ## all reads that have annotated junction combinations: 4,964
-
+tmp <- data.frame(read = names(cigar_junc_gr)[queryHits(olap)] , 
+                tr = names(intr_gtf[subjectHits(olap)])) %>%
+               group_by(read,tr) %>% 
+               count(.) %>% 
+               group_by(read) %>% 
+               summarise(test=any(n==2))
 read_id <- tmp %>% filter(test==F) %>% pull(read)
 
-novel_reads <- cigar_junc[names %in% read_id]
+cigar_junc_gr_pred <- cigar_junc_gr[names(cigar_junc_gr) %in% read_id,]
+novel_reads <-  as.data.table( cigar_junc_gr_pred ) %>% mutate(names = names(cigar_junc_gr_pred))
 
 ##### predict the novel exons based on the novel junctions
 novel_reads <- novel_reads[order(novel_reads$start),] ## sort according to junction start
@@ -507,43 +516,6 @@ novelExons <- full_join(novelExons, read_pred)  ## predictions from both the rea
 
 
 
-#### lapply --> slow
-## check if the read junctions are annotated and if yes, if they occur in a single transcript
-## TRUE: the read contains a novel exon, where the junctions are annoated
-## FALSE: the jucntiosn are not annotated or the exon is already known
-# novel_junc_comb <- function(junc, intr){
-#   olap <- findOverlaps(junc, intr)
-#   if(length(olap)>0){ 
-#   # tr <- names(intr[subjectHits(findOverlaps(junc, intr))])
-#   # !any(duplicated(tr))  ## TRUE: the junction combination is novel; FALSE: the junction combination is annotated
-#  !any(duplicated(names(intr[subjectHits(findOverlaps(junc, intr))])))
-#   }else{ ## the junctions are not annotated  TODO: do we want to predict these as novel exons??
-#     FALSE
-#   }
-
-# }
-
-# # junc <- cigar_junc_gr[[26]]
-# # intr <- intr_gtf
-# cigar_junc_gr <- split(GRanges(cigar_junc), cigar_junc$names)
-# lapply(cigar_junc_gr[1:100], function(x) novel_junc_comb(x, intr_gtf))
-
-
-
-####### using table joins:
-# introns_tab <- as.data.table(intr_gtf)
-# introns_tab[, seqnames:= as.integer(as.character(seqnames))]
-# introns_tab[,transcript_id:=names(intr_gtf)]
-
-# setkeyv(cigar_junc, c("start", "end", "seqnames", "strand", "width"))
-# setkeyv(introns_tab, c("start", "end", "seqnames", "strand", "width"))
-
-# merge(cigar_junc,introns_tab, all.x=TRUE, allow.cartesian=TRUE) ## left join
-# merge(cigar_junc, introns_tab, nomatch=0)  ## inner join, only keep all junctions that are annotated
-# test_merge<- merge(test, introns_tab, all = TRUE)## full join
-
-
-
 ## 2) keep all read pairs with each one junction --> look for novel junction combinations
 
 
@@ -559,6 +531,9 @@ novelExons <- full_join(novelExons, read_pred)  ## predictions from both the rea
 ## add the read counts for the left and right junction
 novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "lend" = "start", "start" = "end", "strand") ) %>% rename(unique_left =unique  )
 novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "end" = "start", "rstart" = "end", "strand") ) %>% rename(unique_right =unique  )
+
+## if the exon is a cassette exons, but one of the junctions is in SJ.out.tab (count = NA), remove the prediction, because it is most likely wrong
+novelExons <- novelExons %>% filter(!(!is.na(lend) & is.na(unique_left))) %>% filter(!(!is.na(rstart) & is.na(unique_right)))
 
 ## take the minimum of both
 novelExons$min_reads <- pmin(novelExons$unique_left, novelExons$unique_right, na.rm = TRUE)  
