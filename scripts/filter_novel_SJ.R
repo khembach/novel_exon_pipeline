@@ -418,19 +418,14 @@ if(nrow(res)>0){
 } 
 
 
-
-########## ----------------- Testing ----------------------------------
+#### -------------- Use read or read pairs with 2 junctions to predict novel exons ------------
 ### TODO: make this optional so that the user can decide if he wants to have better predictions, but slower performance
 # samtools view -h simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_Aligned.out_s.bam | awk '{if ($6 ~ /N/) print $1, $3, $4, $6}'
 
-### Use reads with 2 junctions or raid pairs with each one junction to predict novel exons with novel combinations of splice junctions (not annotated)
 ## We filter all reads with "N" in the CIGAR string
 ## and that are properly paired (-f 2)
 junc_reads <- fread(paste0("samtools view  -f 2 ", BAM, " | awk '{if ($6 ~ /N/) print $1, $2, $3, $4, $6}'"))
 names(junc_reads) <- c("qname", "flag", "seqnames", "pos", "cigar")
-
-## We only keep all reas that are properly paired 
-# junc_reads <- junc_reads[ bamFlagTest(junc_reads$flag, "isPaired") & bamFlagTest(junc_reads$flag, "isProperPair") ,]
 
 ## We infer the read strand from the flag: 
 # our data comes from Illumina HiSeq 2000 (stranded TruSeq libary preparation with dUTPs )
@@ -444,7 +439,9 @@ junc_reads[,strand:=ifelse(isMinusStrand + isFirstMateRead==0, "+",
     ifelse(isMinusStrand + isFirstMateRead ==1, "-", "+"))]
 
 
-## 1)  keep all reads with 2 junctions and also look for novel junction combinations
+#####  -----------  1) ------------
+print("Predict exons from reads with 2 junctions.")
+##  keep all reads with 2 junctions and also look for novel junction combinations
 ## filter all reads with 2 "N" in cigar
 library(stringr)
 two_junc_reads<- junc_reads[str_count(junc_reads$cigar, "N")==2,]
@@ -461,13 +458,11 @@ cigar_junc_gr <- unlist(cigar_junc)
 cigar_junc_gr <- GRanges(two_junc_reads$seqnames[ as.integer( names(cigar_junc_gr) ) ], 
                          cigar_junc_gr, two_junc_reads$strand[as.integer( names(cigar_junc_gr) )])
 
-
-## the "names" indicates the original read --> we want to find novel combinations of introns within a read
+## the "names" indicate the original read --> we want to find novel combinations of introns within a read
 
 ## we join the read junctions with the annotated introns 
 ## start is the first nucleotid in the intron and end the last nucleotid (excluding exons)
 # inbytx <- intronsByTranscript(txdb, use.names=TRUE)
-## unique list of all transcripts and introns
 intr_gtf <- unlist(inbytx)
 intr_gtf$transcript_id <- names(intr_gtf)
 intr_idx <- paste0(start(intr_gtf),":", end(intr_gtf),"_", mcols(intr_gtf)$transcript_id)
@@ -477,15 +472,11 @@ intr_gtf<- intr_gtf[match(unique(intr_idx), intr_idx)] ##only keep the unnique j
 x <- unique( names(cigar_junc_gr)[ -unique(queryHits(findOverlaps(cigar_junc_gr, intr_gtf, type="equal"))) ] )
 cigar_junc_gr <- cigar_junc_gr[ !(names(cigar_junc_gr) %in% x)]
 
-
-
 ## reduce the annotation to speed up the overlap calculation
 # intersect(intr_gtf, cigar_junc_gr, ignore.strand=FALSE) ## this gives us the reduced list of ranges, but we need all of them
 
 ## we compare the read junctions to annotated transcript introns
 olap <- findOverlaps(cigar_junc_gr, intr_gtf, type ="equal") 
-
-
 
 ## test is TRUE if there is a transcript that contains both junctions
 tmp <- data.frame(read = names(cigar_junc_gr)[queryHits(olap)] , 
@@ -501,41 +492,126 @@ novel_reads <-  as.data.table( cigar_junc_gr_pred ) %>% mutate(names = names(cig
 
 ##### predict the novel exons based on the novel junctions
 novel_reads <- novel_reads[order(novel_reads$start),] ## sort according to junction start
-read_pred <- novel_reads %>% group_by(names) %>% dplyr::summarise(lend = nth(start-1, 1), start1 = nth(end+1, 1), end1 = nth(start-1, 2), rstart = nth(end+1, 2), seqnames = unique(seqnames), strand = unique(strand))
+read_pred <- novel_reads %>% group_by(names) %>% 
+  dplyr::summarise(lend = nth(start-1, 1), 
+                  start1 = nth(end+1, 1), 
+                  end1 = nth(start-1, 2), 
+                  rstart = nth(end+1, 2), 
+                  seqnames = unique(seqnames), strand = unique(strand))
 read_pred <- read_pred %>% select(-names) %>% rename(start = start1, end = end1) %>% unique()
 
+## keep all predicitons where the exon itself is not jet annotated
+read_pred <- as.data.frame( subsetByOverlaps( GRanges(read_pred), exons, type="equal", invert=TRUE) ) ## 6 exons
+read_pred <- read_pred %>% select(-width)
+read_pred$seqnames <- as.integer(as.character(read_pred$seqnames))
+
+# print(read_pred)
+# print(head(novelExons))
 
 
 ## convert the columns to integer instead of character
 id <- c("seqnames", "lend", "start", "end", "rstart")
 novelExons[,id] <- as.integer(unlist(novelExons[,id]))
-
-
 ### add the novel exons to the predictions from SJ
 novelExons <- full_join(novelExons, read_pred)  ## predictions from both the reads and the SJ.out.tab
 
 
+#####  -----------  2) ------------
+print("Predict exons from read pairs with each 1 junction.")
+##keep all read pairs with each one junction --> look for novel junction combinations
+junc_read_pairs <- junc_reads[str_count(junc_reads$cigar, "N")==1,]
+junc_read_pairs <-  junc_read_pairs[ duplicated(junc_read_pairs$qname) | 
+                                      duplicated(junc_read_pairs$qname, fromLast=TRUE),]
 
-## 2) keep all read pairs with each one junction --> look for novel junction combinations
+
+## keep all reads pairs where the junctions are already annotated
+cigar_junc_pairs <- cigarRangesAlongReferenceSpace(cigar = junc_read_pairs$cigar, 
+                                            flag = junc_read_pairs$flag, 
+                                            pos = junc_read_pairs$pos, 
+                                            ops = "N")
+
+names(cigar_junc_pairs) <- junc_read_pairs$qname
+cigar_junc_pairs <- as.data.table( unlist(cigar_junc_pairs))
+# cigar_junc_pairs[, names := as.numeric(names) ]
+m <- match(cigar_junc_pairs$names, junc_read_pairs$qname)
+cigar_junc_pairs[, ':=' (seqnames = as.integer(junc_read_pairs$seqnames[m]),
+                    strand = junc_read_pairs$strand[m]) ]
+
+
+## remove all duplicate junctions within one read pair and only keep the reads with two different junctions
+cigar_junc_pairs <- cigar_junc_pairs %>% distinct  
+two_junc_pairs <- cigar_junc_pairs %>% count(names) %>% 
+                  filter(n==2) %>% 
+                  pull(names)
+cigar_junc_pairs <-  cigar_junc_pairs %>% filter(names %in% two_junc_pairs) #
+
+### Keep all read pairs where the distance between the end of the first junction and the start of the second junction is < 2*(readlength-min)verhang) + minIntornSize = 2*(101-6) + 21 = 211
+## Keep all read pairs where the distance between the read ends is < minimal intron length (21 in STAR)
+max_pairs_exon_len <- 211
+x <- cigar_junc_pairs %>% group_by(names) %>%  select(names, start, end) %>% 
+      dplyr::summarise( dist = nth(start-1, 2) - nth(end+1, 1) ) %>% 
+      filter(dist < max_pairs_exon_len) %>% 
+      pull(names)
+cigar_junc_pairs <- cigar_junc_pairs[ cigar_junc_pairs$names %in% x , ]
+
+cigar_junc_pairs_gr <- GRanges(cigar_junc_pairs)
+
+
+## Keep all reads with annotated junctions
+## names of all reads with unannotated junctions
+x <- mcols(cigar_junc_pairs_gr)$names[ 
+       -unique( queryHits( findOverlaps(cigar_junc_pairs_gr, intr_gtf, type="equal") ) ) ]
+cigar_junc_pairs_gr <- cigar_junc_pairs_gr[ ! mcols( cigar_junc_pairs_gr)$names %in% x ] ## all read pairs with only annotated junctions
+
+## we compare the read junctions to annotated transcript introns
+olap <- findOverlaps(cigar_junc_pairs_gr, intr_gtf, type ="equal") 
+
+## test is TRUE if there is a transcript that contains both junctions
+tmp <- data.frame(read = mcols(cigar_junc_pairs_gr)$names[queryHits(olap)] , 
+                tr = names(intr_gtf[subjectHits(olap)])) %>%
+               group_by(read,tr) %>% 
+               count(.) %>% 
+               group_by(read) %>% 
+               summarise(test=any(n==2))
+read_id <- tmp %>% filter(test==F) %>% pull(read) %>% as.character(.)
+
+cigar_junc_pairs_gr_pred <- cigar_junc_pairs_gr[mcols(cigar_junc_pairs_gr)$names %in% read_id,]
+novel_reads <-  as.data.table( cigar_junc_pairs_gr_pred ) 
+
+##### predict the novel exons based on the novel junctions
+novel_reads <- novel_reads[order(novel_reads$start),] ## sort according to junction start
+read_pairs_pred <- novel_reads %>% group_by(names) %>% 
+  dplyr::summarise(lend = nth(start-1, 1), 
+                  start1 = nth(end+1, 1), 
+                  end1 = nth(start-1, 2), 
+                  rstart = nth(end+1, 2), 
+                  seqnames = unique(seqnames), strand = unique(strand))
+read_pairs_pred <- read_pairs_pred %>% select(-names) %>% rename(start = start1, end = end1) %>% unique()
+
+## Keep all predictions, where the exon itself is not jet annotated 
+read_pairs_pred <- as.data.frame( subsetByOverlaps( GRanges(read_pairs_pred), exons, type="equal", invert=TRUE) ) ## 4 exons
+read_pairs_pred$seqnames <- as.integer(as.character(read_pairs_pred$seqnames))
+
+# print(read_pairs_pred)
+# print(head(novelExons))
+
+## convert the columns to integer instead of character
+# id <- c("seqnames", "lend", "start", "end", "rstart")
+# novelExons[,id] <- as.integer(unlist(novelExons[,id]))
+novelExons <- full_join(novelExons, read_pairs_pred)  ## predictions from both the reads and the SJ.out.tab
 
 
 
-
-
-
-
-##########------------ end Testing ----------------------------------
-
-### Add columns with the number of reads supporting the left and right splice junction and the minimum of both 
-
+######  Add columns with the number of reads supporting the left and right splice junction and the minimum of both 
+print("Add read counts for each junction.")
 ## add the read counts for the left and right junction
 novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "lend" = "start", "start" = "end", "strand") ) %>% rename(unique_left =unique  )
 novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, unique) %>% mutate(start = start-1, end = end+1), by = c("seqnames", "end" = "start", "rstart" = "end", "strand") ) %>% rename(unique_right =unique  )
 
-## if the exon is a cassette exons, but one of the junctions is in SJ.out.tab (count = NA), remove the prediction, because it is most likely wrong
+## if the exon is a cassette exons, but one of the junctions is not in SJ.out.tab (count = NA), remove the prediction, because it is most likely wrong
 novelExons <- novelExons %>% filter(!(!is.na(lend) & is.na(unique_left))) %>% filter(!(!is.na(rstart) & is.na(unique_right)))
 
-## take the minimum of both
+## take the minimum read coverage of both junctions
 novelExons$min_reads <- pmin(novelExons$unique_left, novelExons$unique_right, na.rm = TRUE)  
 
 

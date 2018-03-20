@@ -78,10 +78,10 @@ rule all:
         # removed_exon = config["reduced_gtf"], test_dirnames = config["star_param"])
         # expand("simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
-        expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
         which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
-
-
+        # "simulation/analysis/stringtie/me_exon/outSJfilterOverhangMin6_stringtie.gtf"
+        # "simulation/analysis/stringtie/PR/me_exon/outSJfilterOverhangMin6/PR_expression.png"
 
 # rule test:
 #     conda:

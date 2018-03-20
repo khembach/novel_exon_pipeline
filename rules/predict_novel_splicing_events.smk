@@ -18,7 +18,7 @@ rule filter_novel_SJ:
         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
     output:
         # outfile = "simulation/analysis/filtered_SJ/novel_exons_reduced_{which_reduced_gtf}_{test_dirnames}.txt"
-        outfile = "simulation/analysis/filtered_SJ/two_junc_reads/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        outfile = "simulation/analysis/filtered_SJ/two_junc_reads_pairs_annotated/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     log:
         "logs/filter_SJ/{which_reduced_gtf}_{test_dirnames}.log",
     script:
@@ -26,7 +26,6 @@ rule filter_novel_SJ:
 
 
 ###################
-
 # add predicted exons to the GTF file
 
 ###################
@@ -85,9 +84,55 @@ rule transcriptome_fasta:
 rule plot_PR_curve:
     input:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
-        prediction = "simulation/analysis/filtered_SJ/two_junc_reads/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        prediction = "simulation/analysis/filtered_SJ/two_junc_reads_pairs_annotated/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     output:
-        "simulation/analysis/exon_prediction_performance/PR/two_junc_reads/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
-        outdir = "simulation/analysis/exon_prediction_performance/PR/two_junc_reads/{which_reduced_gtf}/{test_dirnames}/"
+        "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        outdir = "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/"
+    script:
+        "../scripts/plot_PR_curve_novel_sj.R"
+
+
+
+
+###################
+
+# Predict transcripts with StringTie
+
+###################
+## the library was prepared with dUTPs, so it is a stranded library fr-firststrand (--rf)
+# -a <int>	Junctions that don't have spliced reads that align across them with at least this amount
+            # of bases on both sides are filtered out. Default: 10
+# -c <float>	Sets the minimum read coverage allowed for the predicted transcripts.
+# A transcript with a lower coverage than this value is not shown in the output. Default: 2.5
+#  --> probably we will have to lower this value, most lowly expressed transcripts will not be recovert with 2.5
+rule stringtie_assemble_transcripts:
+    input:
+        gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
+        bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
+    output:
+        "simulation/analysis/stringtie/{which_reduced_gtf}/{test_dirnames}_stringtie.gtf"
+    threads:
+        8
+    shell:
+        "stringtie {input.bam} -o {output} -p {threads} -G {input.gtf} --rf -a 3"
+
+
+rule stringtie_pred_exons:
+    input:
+        gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
+        strtie = "simulation/analysis/stringtie/{which_reduced_gtf}/{test_dirnames}_stringtie.gtf"
+    output:
+        outfile = "simulation/analysis/stringtie/{which_reduced_gtf}/novel_exons_{test_dirnames}_stringtie.txt"
+    script:
+        "../scripts/stringtie_novel_exons.R"
+
+
+rule plot_PR_curve_stringtie:
+    input:
+        removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
+        prediction = "simulation/analysis/stringtie/{which_reduced_gtf}/novel_exons_{test_dirnames}_stringtie.txt"
+    output:
+        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        outdir = "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{test_dirnames}/"
     script:
         "../scripts/plot_PR_curve_novel_sj.R"

@@ -14,12 +14,32 @@ PREDICTION <- snakemake@input[["prediction"]]
 OUTDIR <- snakemake@output[["outdir"]]
 
 
+## stringtie
+# REMOVED = "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
+# PREDICTION = "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/stringtie/me_exon/novel_exons_outSJfilterOverhangMin6_stringtie.txt"
+
+
+
 # REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
 # REMOVED <- "simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
 # PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
+# PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/two_junc_reads/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
+
 # params <- c("default", "outSJfilterOverhangMin9", "outSJfilterOverhangMin6", "outSJfilterCountTotalMin3", "scoreGenomicLengthLog2scale0", "alignSJoverhangMin3")
 # PRED_PATH <- "simulation/analysis/filtered_SJ/me_exon/novel_exons_"
 # OUTDIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/exon_prediction_performance/PR/test/"
+
+
+# SJFILE <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_SJ.out.tab"
+# sj <- fread(SJFILE)
+# colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
+# 
+# #strand: (0: undefined, 1: +, 2: -)
+# sj$strand[sj$strand==0] <- "*"
+# sj$strand[sj$strand==1] <- "+"
+# sj$strand[sj$strand==2] <- "-"
+
+
 
 
 novelExons <- read.table(PREDICTION, header=TRUE, stringsAsFactors = FALSE)
@@ -74,15 +94,15 @@ compute_pr_rec <- function(novelExons, nr_removed){
 dat_all <- compute_pr_rec(novelExons, nrow(removed))
 precision_all <- dat_all %>% select(min_reads, precision)
 
-p <- ggplot(dat_all, aes(x=recall, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("All removed exons")
+p <- ggplot(dat_all, aes(x=recall, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle(paste0("All removed exons (", nrow(removed), ")"))
 ggsave(paste0(OUTDIR, "PR.png"), p, device = "png") 
 
 ## PR vs reads
-p <- ggplot(dat_all, aes(x = min_reads, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("All removed exons")
+p <- ggplot(dat_all, aes(x = min_reads, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + ggtitle(paste0("All removed exons (", nrow(removed), ")"))
 ggsave(paste0(OUTDIR, "pr_reads.png"), p, device = "png")
 
 ## PR vs reads
-p <- ggplot(dat_all, aes(x = min_reads, y = recall)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("All removed exons")
+p <- ggplot(dat_all, aes(x = min_reads, y = recall)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + ggtitle(paste0("All removed exons (", nrow(removed), ")"))
 ggsave(paste0(OUTDIR, "rec_reads.png"), p, device = "png")
 
 
@@ -112,10 +132,10 @@ names(dat_class) <- names(id_class)
 dat_class <- rbindlist(dat_class, idcol = "class")
 dat_class <- left_join(dat_class, precision_all) ## add the corresponding precision value from all predictions 
 
-p <-  ggplot(dat_class, aes(x = min_reads, y =recall, color = class)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + geom_point() + ggtitle("All removed exons") 
+p <-  ggplot(dat_class, aes(x = min_reads, y =recall, color = class)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + geom_point() + ggtitle(paste0("All removed exons (", nrow(removed), ")")) 
 ggsave(paste0(OUTDIR, "rec_reads_class.png"), p, device = "png")
 
-p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("All removed exons")+ ylab("precision (all exons)")
+p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle(paste0("All removed exons (", nrow(removed), ")"))
 ggsave(paste0(OUTDIR, "PR_class.png"), p, device = "png")
 
 
