@@ -590,6 +590,7 @@ read_pairs_pred <- read_pairs_pred %>% select(-names) %>% rename(start = start1,
 
 ## Keep all predictions, where the exon itself is not jet annotated 
 read_pairs_pred <- as.data.frame( subsetByOverlaps( GRanges(read_pairs_pred), exons, type="equal", invert=TRUE) ) ## 4 exons
+read_pairs_pred <- read_pairs_pred %>% select(-width)
 read_pairs_pred$seqnames <- as.integer(as.character(read_pairs_pred$seqnames))
 
 # print(read_pairs_pred)
