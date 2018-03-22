@@ -56,10 +56,10 @@ sj$strand[sj$strand==2] <- "-"
 # junction filtering
 #########################
 
-
+## TODO: do we really want to filter them out, because we only filter 2 correct junctions!
 # filter out all sj with annotated==0, because the 2nd pass mapping is only for quantification and not for discovery (they are most likely artifacts!
 ## 0: unannotated, 1: annotated 
-sj <- sj[sj$annotated != 0, ]  ## remove 6 junctions
+# sj <- sj[sj$annotated != 0, ]  ## remove 2 junctions
 ## but this filters out one of the true junctions that we want to find!!
 
 ## Extract introns from the gtf file
@@ -469,8 +469,8 @@ intr_idx <- paste0(start(intr_gtf),":", end(intr_gtf),"_", mcols(intr_gtf)$trans
 intr_gtf<- intr_gtf[match(unique(intr_idx), intr_idx)] ##only keep the unnique junction-transcript_id combinations
 
 ## Filter out all reads that have unannotated junctions (most of them are wrong)
-x <- unique( names(cigar_junc_gr)[ -unique(queryHits(findOverlaps(cigar_junc_gr, intr_gtf, type="equal"))) ] )
-cigar_junc_gr <- cigar_junc_gr[ !(names(cigar_junc_gr) %in% x)]
+# x <- unique( names(cigar_junc_gr)[ -unique(queryHits(findOverlaps(cigar_junc_gr, intr_gtf, type="equal"))) ] )
+# cigar_junc_gr <- cigar_junc_gr[ !(names(cigar_junc_gr) %in% x)]
 
 ## reduce the annotation to speed up the overlap calculation
 # intersect(intr_gtf, cigar_junc_gr, ignore.strand=FALSE) ## this gives us the reduced list of ranges, but we need all of them
@@ -485,9 +485,14 @@ tmp <- data.frame(read = names(cigar_junc_gr)[queryHits(olap)] ,
                count(.) %>% 
                group_by(read) %>% 
                summarise(test=any(n==2))
-read_id <- tmp %>% filter(test==F) %>% pull(read)
+# read_id <- tmp %>% filter(test==F) %>% pull(read)
+read_id <- tmp %>% filter(test==T) %>% pull(read) ## all reads that are allready annotated
 
-cigar_junc_gr_pred <- cigar_junc_gr[names(cigar_junc_gr) %in% read_id,]
+
+cigar_junc_gr_pred <- cigar_junc_gr[! names(cigar_junc_gr) %in% read_id,]  ## all reads with junctions that are not annotated in a transcripts
+
+
+# cigar_junc_gr_pred <- cigar_junc_gr[names(cigar_junc_gr) %in% read_id,]
 novel_reads <-  as.data.table( cigar_junc_gr_pred ) %>% mutate(names = names(cigar_junc_gr_pred))
 
 ##### predict the novel exons based on the novel junctions
@@ -500,13 +505,15 @@ read_pred <- novel_reads %>% group_by(names) %>%
                   seqnames = unique(seqnames), strand = unique(strand))
 read_pred <- read_pred %>% select(-names) %>% rename(start = start1, end = end1) %>% unique()
 
-## keep all predicitons where the exon itself is not jet annotated
+## keep all predictoons where the exon itself is not jet annotated
 read_pred <- as.data.frame( subsetByOverlaps( GRanges(read_pred), exons, type="equal", invert=TRUE) ) ## 6 exons
 read_pred <- read_pred %>% select(-width)
 read_pred$seqnames <- as.integer(as.character(read_pred$seqnames))
 
-# print(read_pred)
-# print(head(novelExons))
+### Keep all exons, that are located within gene boundaries (this removes exons from wrongly mapped reads)
+read_pred <- read_pred[ 
+unique(queryHits(findOverlaps(GRanges( read_pred$seqnames, IRanges(read_pred$lend, read_pred$rstart), read_pred$strand ), gtf[mcols(gtf)$type == "gene"], type = "within")))
+, ]
 
 
 ## convert the columns to integer instead of character
@@ -593,8 +600,6 @@ read_pairs_pred <- as.data.frame( subsetByOverlaps( GRanges(read_pairs_pred), ex
 read_pairs_pred <- read_pairs_pred %>% select(-width)
 read_pairs_pred$seqnames <- as.integer(as.character(read_pairs_pred$seqnames))
 
-# print(read_pairs_pred)
-# print(head(novelExons))
 
 ## convert the columns to integer instead of character
 # id <- c("seqnames", "lend", "start", "end", "rstart")
@@ -611,6 +616,7 @@ novelExons <- novelExons %>% left_join(select(sj, seqnames, start, end, strand, 
 
 ## if the exon is a cassette exons, but one of the junctions is not in SJ.out.tab (count = NA), remove the prediction, because it is most likely wrong
 novelExons <- novelExons %>% filter(!(!is.na(lend) & is.na(unique_left))) %>% filter(!(!is.na(rstart) & is.na(unique_right)))
+
 
 ## take the minimum read coverage of both junctions
 novelExons$min_reads <- pmin(novelExons$unique_left, novelExons$unique_right, na.rm = TRUE)  
