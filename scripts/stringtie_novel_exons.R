@@ -1,7 +1,7 @@
 ## This script takes the stringtie transcript assembly as input an compares it with an annotation to find the novel exons.
 
-GTF <- snakemkae@input[["gtf"]]
-STRTIE <- snakemkae@input[["strtie"]]
+GTF <- snakemake@input[["gtf"]]
+STRTIE <- snakemake@input[["strtie"]]
 OUTFILE <- snakemake@output[["outfile"]]
 
 # GTF <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/GRCh37.85_chr19_22_reduced_me_exon.gtf"

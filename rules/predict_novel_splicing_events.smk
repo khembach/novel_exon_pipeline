@@ -100,29 +100,53 @@ rule plot_PR_curve:
 
 ###################
 ## the library was prepared with dUTPs, so it is a stranded library fr-firststrand (--rf)
-# -a <int>	Junctions that don't have spliced reads that align across them with at least this amount
+# -a <int>  Junctions that don't have spliced reads that align across them with at least this amount
             # of bases on both sides are filtered out. Default: 10
-# -c <float>	Sets the minimum read coverage allowed for the predicted transcripts.
-# A transcript with a lower coverage than this value is not shown in the output. Default: 2.5
+# -c <float>    Sets the minimum read coverage allowed for the predicted transcripts.
+                # A transcript with a lower coverage than this value is not shown in the output. Default: 2.5
 #  --> probably we will have to lower this value, most lowly expressed transcripts will not be recovert with 2.5
+# -f <0.0-1.0>  Sets the minimum isoform abundance of the predicted transcripts as a fraction of the most abundant transcript
+                # assembled at a given locus. Lower abundance transcripts are often artifacts of incompletely spliced precursors
+                # of processed transcripts. Default: 0.1
+# -j <float>    There should be at least this many spliced reads that align across a junction (i.e. junction coverage). This number
+            # can be fractional, since some reads align in more than one place. A read that aligns in n places will contribute 1/n to
+            # the junction coverage. Default: 1
+# -t    This parameter disables trimming at the ends of the assembled transcripts. By default StringTie adjusts the predicted transcript's start
+            # and/or stop coordinates based on sudden drops in coverage of the assembled transcript.
+# default
+# -a 3
+# -a 6 (min value in STAR alignment)
+# -c 1
+# -f 0.05
+# -f 0.2
+# -j 1 (STAR value) --> no change required?
+# -t (probably we should not set this parameter, but I still want to know what happens if we use it)
+#
+
+def get_stringtie_param(wildcards):
+    return config["stringtie_param"][wildcards.stringtie_param]  ## e.g. minJuncOverhang6
+
+
 rule stringtie_assemble_transcripts:
     input:
         gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
     output:
-        "simulation/analysis/stringtie/{which_reduced_gtf}/{test_dirnames}_stringtie.gtf"
+        "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf"
+    params:
+        test_param = get_stringtie_param
     threads:
         8
     shell:
-        "stringtie {input.bam} -o {output} -p {threads} -G {input.gtf} --rf -a 3"
+        "stringtie {input.bam} -o {output} -p {threads} -G {input.gtf} --rf {params.test_param}"
 
 
 rule stringtie_pred_exons:
     input:
         gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
-        strtie = "simulation/analysis/stringtie/{which_reduced_gtf}/{test_dirnames}_stringtie.gtf"
+        strtie = "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf"
     output:
-        outfile = "simulation/analysis/stringtie/{which_reduced_gtf}/novel_exons_{test_dirnames}_stringtie.txt"
+        outfile = "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
     script:
         "../scripts/stringtie_novel_exons.R"
 
@@ -130,9 +154,9 @@ rule stringtie_pred_exons:
 rule plot_PR_curve_stringtie:
     input:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
-        prediction = "simulation/analysis/stringtie/{which_reduced_gtf}/novel_exons_{test_dirnames}_stringtie.txt"
+        prediction = "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
     output:
-        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
-        outdir = "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{test_dirnames}/"
+        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_expression.png",
+        outdir = "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/"
     script:
         "../scripts/plot_PR_curve_novel_sj.R"
