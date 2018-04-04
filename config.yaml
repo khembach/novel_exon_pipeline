@@ -70,6 +70,7 @@ stringtie_param:
     minJuncOverhang6:    "-a 6"
     minJuncOverhang3:    "-a 3"
     minReadCoverage1:   "-c 1"
-    minIsoformAbundance0.5:    "-f 0.5"
+    minIsoformAbundance0.05:    "-f 0.05"
     minIsoformAbundance0.2:    "-f 0.2"
     noEndTrimming:  "-t"
+    minReadCoverage1_minIsoformAbundance0.05:   "-c 1 -f 0.05"

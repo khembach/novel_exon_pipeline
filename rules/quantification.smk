@@ -142,3 +142,52 @@ rule featureCounts:
 #     output:
 #     script:
 #         "scripts/comparison_ggplot_salmon.R"
+
+
+
+
+
+###########
+
+## StringTie quantifiction with Salmon
+
+############
+
+rule stringtie_Salmon_index:
+    input:
+        fasta  = "simulation/analysis/stringtie/transcriptome/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}_stringtie_{stringtie_param}.fasta"
+    output:
+        "simulation/analysis/stringtie/Salmon/reference/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/hash.bin",
+        dir = "simulation/analysis/stringtie/Salmon/reference/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/"
+    shell:
+        "salmon index -t {input.fasta} -i {output.dir} --type quasi -k 31"
+
+
+rule stringtie_Salmon_quant:
+    input:
+        index = "simulation/analysis/stringtie/Salmon/reference/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/",
+        fastq1 = "simulation/simulated_data/simulated_reads_chr19_22_1.fq",
+        fastq2 = "simulation/simulated_data/simulated_reads_chr19_22_2.fq"
+    output:
+        "simulation/analysis/stringtie/Salmon/quantification/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/quant.sf",
+        "simulation/analysis/stringtie/Salmon/quantification/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/aux_info/fld.gz",
+        outdir = "simulation/analysis/stringtie/Salmon/quantification/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/"
+    threads:
+        4
+    log:
+        "logs/stringtie/Salmon/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}.log"
+    shell:
+        "salmon quant -i {input.index} -l A -1 {input.fastq1} -2 {input.fastq2} -o {output.outdir} --threads {threads} 2> {log}"
+
+rule stringtie_derived_Salmon_counts:
+    input:
+        gtf = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf",
+        truth = "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt",
+        removed = "simulation/reduced_GTF/removed_{which_reduced_gtf}_unique_classified.txt",
+        quant = "simulation/analysis/stringtie/Salmon/quantification/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/quant.sf",
+        fldgz = "simulation/analysis/stringtie/Salmon/quantification/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/aux_info/fld.gz"
+    output:
+        "simulation/analysis/stringtie/derived_Salmon_counts/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/salmon_coverage_count.txt",
+        outdir = "simulation/analysis/stringtie/derived_Salmon_counts/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/"
+    script:
+        "../scripts/salmon_exon_counts_scaled.R"

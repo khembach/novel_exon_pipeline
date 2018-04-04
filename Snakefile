@@ -81,9 +81,11 @@ rule all:
         # expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # "simulation/analysis/stringtie/me_exon/outSJfilterOverhangMin6_stringtie.gtf"
-        expand("simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_expression.png",
-        which_reduced_gtf = config["reduced_gtf"], stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6" )
-        # "simulation/analysis/stringtie/PR/me_exon/outSJfilterOverhangMin6/PR_expression.png"
+        expand("simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.png",
+        which_reduced_gtf = config["reduced_gtf"], stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6" ),
+        expand("simulation/analysis/stringtie/derived_Salmon_counts/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/salmon_coverage_count.txt",
+        which_reduced_gtf = "me_exon", stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6" )
+
 
 # rule test:
 #     conda:

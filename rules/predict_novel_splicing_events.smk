@@ -126,13 +126,12 @@ rule plot_PR_curve:
 def get_stringtie_param(wildcards):
     return config["stringtie_param"][wildcards.stringtie_param]  ## e.g. minJuncOverhang6
 
-
 rule stringtie_assemble_transcripts:
     input:
         gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
     output:
-        "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf"
+        "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf"
     params:
         test_param = get_stringtie_param
     threads:
@@ -144,9 +143,9 @@ rule stringtie_assemble_transcripts:
 rule stringtie_pred_exons:
     input:
         gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
-        strtie = "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf"
+        strtie = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf"
     output:
-        outfile = "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
+        outfile = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
     script:
         "../scripts/stringtie_novel_exons.R"
 
@@ -154,9 +153,21 @@ rule stringtie_pred_exons:
 rule plot_PR_curve_stringtie:
     input:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
-        prediction = "simulation/analysis/stringtie/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
+        prediction = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
     output:
-        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_expression.png",
+        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.png",
         outdir = "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/"
     script:
         "../scripts/plot_PR_curve_novel_sj.R"
+
+
+rule stringtie_transcriptome_fasta:
+    input:
+        gtf = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf",
+        genome = config["genome"]
+    output:
+        outfile = "simulation/analysis/stringtie/transcriptome/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}_stringtie_{stringtie_param}.fasta"
+    log:
+        "logs/stringtie/transcriptome_fasta/{which_reduced_gtf}/{stringtie_param}_{test_dirnames}.log"
+    script:
+        "../scripts/gtf_to_transcript_fasta.R"
