@@ -171,3 +171,32 @@ rule stringtie_transcriptome_fasta:
         "logs/stringtie/transcriptome_fasta/{which_reduced_gtf}/{stringtie_param}_{test_dirnames}.log"
     script:
         "../scripts/gtf_to_transcript_fasta.R"
+
+
+
+############
+
+## Compare predicted GTF with reference annotation
+
+###########
+
+rule gffcompare_stringtie:
+    input:
+        stringtie = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf",
+        ref_gtf = GTF
+    output:
+        outfile = "simulation/analysis/stringtie/gffcompare/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/stringtie.annotated.gtf",
+        refmap = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/stringtie.{test_dirnames}_stringtie.gtf.refmap",
+    shell:
+        "gffcompare {input.stringtie} -o simulation/analysis/stringtie/gffcompare/{wildcards.which_reduced_gtf}/{wildcards.stringtie_param}/{wildcards.test_dirnames}/stringtie -r {input.ref_gtf} -e 100 -d 100 -V"
+
+
+rule gffcompare_prediction:
+    input:
+        prediction = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
+        ref_gtf = GTF
+    output:
+        outfile = "simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
+        refmap = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/prediction.GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf.refmap"
+    shell:
+        "gffcompare {input.prediction} -o simulation/analysis/gffcompare/{wildcards.which_reduced_gtf}/{wildcards.test_dirnames}/prediction -r {input.ref_gtf} -e 100 -d 100 -V"
