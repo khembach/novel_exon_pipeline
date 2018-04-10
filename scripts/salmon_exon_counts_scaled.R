@@ -37,6 +37,14 @@ SalmonOutput <- snakemake@output[["outdir"]]
 # rf <- "/home/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
 
 
+# GTF <- "/home/Shared/kathi/microexon_pipeline/simulation/analysis/stringtie/predictions/me_exon/minReadCoverage1_minIsoformAbundance0.05/outSJfilterOverhangMin6_stringtie.gtf"
+# tf <- "/home/Shared/kathi/microexon_pipeline/simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
+# qf <- "/home/Shared/kathi/microexon_pipeline/simulation/analysis/stringtie/Salmon/quantification/me_exon/minReadCoverage1_minIsoformAbundance0.05/outSJfilterOverhangMin6/quant.sf"
+# fldgz <- "/home/Shared/kathi/microexon_pipeline/simulation/analysis/stringtie/Salmon/quantification/me_exon/minReadCoverage1_minIsoformAbundance0.05/outSJfilterOverhangMin6/aux_info/fld.gz"
+# SalmonOutput <- "/home/Shared/kathi/microexon_pipeline/simulation/analysis/stringtie/derived_Salmon_counts/me_exon/minReadCoverage1_minIsoformAbundance0.05/outSJfilterOverhangMin6/test/"
+# rf <- "/home/Shared/kathi/microexon_pipeline/simulation/reduced_GTF/removed_me_exon_unique_classified.txt"
+
+
 
 ## parse the gtf file to get a list of all exons and the corresponding transcripts
 gtf <- import(GTF)    
@@ -66,9 +74,6 @@ removed_exon_loc <- unique( paste0(removed$seqnames[exon_id], "_", removed$start
 
 ### Compute the mean fragment length from the Salmon auxilliary files
 ## fld.gz: This file contains an approximation of the observed fragment length distribution. It is a gzipped, binary file containing integer counts. The number of (signed, 32-bit) integers (with machine-native endianness) is equal to the number of bins in the fragment length distribution (1,001 by default — for fragments ranging in length from 0 to 1,000 nucleotides).
-# if(!file.exists( file.path(SalmonOutput, "fld") ) ){
-#     system(paste0("gunzip -c ",fldgz, " > ", file.path(SalmonOutput, "fld" )) )
-# }
 system(paste0("gunzip -c ",fldgz, " > ", file.path(SalmonOutput, "fld" )) )
 fld <- file.path(SalmonOutput, "fld" )
 
@@ -79,22 +84,22 @@ print(paste0("Fragment length: ", fragmentLength))
 
 
 ### compute the start and end position of all exons in the transcripts and add them to the gtf file
+## we assume that all exons are ordered ascending according to their location on the genome (independent of strand
+
 ## we assume that all exons in a "+"-strand transcript are ordered ascending, and decreasing on the "-" strand
 ## --> we split the gtf and order the two strands seperately, then we join it together again
-gtf_plus <- gtf[strand(gtf) == "+"]
-gtf_plus <- sort(gtf_plus)
+gtf <- sort(gtf) ## we sort all exons according to start on genome
 
-gtf_neg <- gtf[strand(gtf) == "-"]
-gtf_neg <- sort(gtf_neg, decreasing=TRUE)
+## replace possible "." in the transcript_id names
+# mcols(gtf)$transcript_id <- gsub(".", "_", mcols(gtf)$transcript_id, fixed=TRUE)
 
-gtf <- c(gtf_plus, gtf_neg)
-
-
-inds <- split(1:length(gtf),gtf$transcript_id)  ## get exon index per transcript
+inds <- split(1:length(gtf),as.factor( mcols(gtf)$transcript_id) )  ## get exon index per transcript
 inds1 <- sapply(inds,.subset,1)  ## only the first exon per transcript
-gtfs <- split(gtf, mcols(gtf)$transcript_id)  ## list of all transcripts
+gtfs <- split(gtf, as.factor( mcols(gtf)$transcript_id) ) ## list of all transcripts
 ws <- width(gtfs)
-str <- as.character(strand(gtf))[inds1]  ## strand of all transcripts
+m <- match(names(gtfs), names(inds1))
+str <- as.character(strand(gtf))[inds1[m]] ## strand of all transcripts
+
 
 getPositions <- function(u, do_rev=FALSE) {
   if (do_rev)
@@ -113,8 +118,41 @@ names(ps) <- names(ws)
 s <- str=="+"
 ps[s] <- lapply(ws[s], getPositions)
 ps[!s] <- lapply(ws[!s], getPositions, do_rev=TRUE)
-mcols(gtf)$pos_start <- unsplit(lapply(ps,function(u) u[,1]), gtf$transcript_id)
-mcols(gtf)$pos_end <- unsplit(lapply(ps,function(u) u[,2]), gtf$transcript_id)
+
+mcols(gtf)$pos_start <- unsplit(lapply(ps,function(u) u[,1]), as.factor( mcols(gtf)$transcript_id) )
+mcols(gtf)$pos_end <- unsplit(lapply(ps,function(u) u[,2]), as.factor( mcols(gtf)$transcript_id) )
+
+
+
+
+####### alternative: sort the exons according to position in transcript (decreasing for transcripts on the "-" strand)
+# gtf_plus <- gtf[strand(gtf) == "+"]
+# gtf_plus <- sort(gtf_plus)
+# gtf_neg <- gtf[strand(gtf) == "-"]
+# gtf_neg <- sort(gtf_neg, decreasing=TRUE)
+# gtf <- c(gtf_plus, gtf_neg)
+
+# gtfs <- split(gtf, as.factor(mcols(gtf)$transcript_id))  ## list of all transcripts
+# ws <- width(gtfs)
+
+# getPositions <- function(u) {
+#   cs <- cumsum(u)
+#   z <- cbind(c(1,cs[-length(cs)]+1),cs)
+#   return(z)
+# }
+
+# ps <- vector("list",length(ws))
+# names(ps) <- names(ws)
+# # s <- str=="+"
+# ps <- lapply(ws, getPositions)
+
+# mcols(gtf)$pos_start <- unsplit(lapply(ps,function(u) u[,1]), as.factor(mcols(gtf)$transcript_id) )
+# mcols(gtf)$pos_end <- unsplit(lapply(ps,function(u) u[,2]), as.factor(mcols(gtf)$transcript_id))
+
+
+
+
+
 ## annotation grouped by the exon location
 # quant$BoundaryLength <- quant$Length - quant$EffectiveLength
 
@@ -191,7 +229,7 @@ gtf_df$exonLength <- width(gtf)
 
 
 
-#### comput the coverage using the possible fragment start positions   ==============================
+#### compute the coverage using the possible fragment start positions   ==============================
 startPos <- pmax(mcols(gtf)$pos_start - ( fragmentLength -1), 1)
 endPos <- pmin(mcols(gtf)$pos_end + (fragmentLength -1), mcols(gtf)$trLength)
 # nFragPos <- endPos - startPos + 1
