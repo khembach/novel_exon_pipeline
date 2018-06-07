@@ -615,7 +615,7 @@ rec_low <- sapply(read_cutoffs, function(x) compute_rec(novelExons, low_truth, x
 rec_high <- sapply(read_cutoffs, function(x) compute_rec(novelExons, high_truth, x) )
 
 dat_expression <- data.frame(reads = read_cutoffs, low = rec_low, high=rec_high, precision = pr )
-dat_expression_long <- gather(dat_expression, key = expression, value = recall, low, high)
+dat_expression_long <- tidyr::gather(dat_expression, key = expression, value = recall, low, high)
 
 p <-  ggplot(dat_expression_long, aes(x = reads, y =recall, color = expression)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))
 ggsave(paste0(OUTDIR, "rec_reads_expression.png"), p, device = "png")
@@ -626,12 +626,12 @@ ggsave(paste0(OUTDIR, "PR_exon_expression.png"), p, device = "png")
 ## Exon class: easy, medium, hard to predict
 levels(removed$class)[ levels(removed$class) == "complicated" ] <- "hard"
 easy_truth <- removed[ removed$class == "easy",]
-easy_medium <- removed[ removed$class == "medium",]
-easy_hard <- removed[ removed$class == "hard",]
+medium_truth <- removed[ removed$class == "medium",]
+hard_truth <- removed[ removed$class == "hard",]
 
 rec_easy <- sapply(read_cutoffs, function(x) compute_rec(novelExons, easy_truth, x) )
-rec_medium <- sapply(read_cutoffs, function(x) compute_rec(novelExons, easy_medium, x) )
-rec_hard <- sapply(read_cutoffs, function(x) compute_rec(novelExons, easy_hard, x) )
+rec_medium <- sapply(read_cutoffs, function(x) compute_rec(novelExons, medium_truth, x) )
+rec_hard <- sapply(read_cutoffs, function(x) compute_rec(novelExons, hard_truth, x) )
 
 dat_class <- data.frame(reads = read_cutoffs, easy = rec_easy, medium=rec_medium, hard=rec_hard, precision = pr )
 dat_class_long <- gather(dat_class, key = class, value = recall, easy, medium, hard)
@@ -642,6 +642,18 @@ ggsave(paste0(OUTDIR, "rec_reads_class.png"), p, device = "png")
 p <- ggplot(dat_class_long, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() 
 ggsave(paste0(OUTDIR, "PR_class.png"), p, device = "png")
 
+
+
+## only take all exons with >10 simulated reads
+removed_expressed <-removed[ removed$count_reads > 10,]
+expressed_easy_truth <- removed_expressed[ removed_expressed$class == "easy",]
+rec_expressed_easy <- sapply(read_cutoffs, function(x) compute_rec(novelExons, expressed_easy_truth, x) )
+plot(rec_expressed_easy, pr, type = "l")
+
+## missing predictions:
+fn_expressed_easy_truth <- dplyr::anti_join(expressed_easy_truth, novelExons, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
+
+fn_easy_truth <- dplyr::anti_join(easy_truth, novelExons, by = c("seqnames", "start", "end", "strand", "lend", "rstart"))
 
 ```
 
