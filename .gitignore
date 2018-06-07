@@ -9,3 +9,10 @@ simulation/
 .Renviron
 difficult_novel_exon_examples/
 igv_session*
+*.RData
+scripts/.snakemake*
+test_novel_exons/
+test_reduce_gtf/
+pipeline/test_BAM_junctions/
+pipeline/*.html
+*.Rhist
