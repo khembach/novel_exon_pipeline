@@ -3,13 +3,13 @@ library(ggplot2)
 
 
 REMOVED <- "simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
-NOVEL <- "simulation/analysis/filtered_SJ/novel_exons_reduced_me_exon_outSJfilterOverhangMin6.txt"
+NOVEL <- "simulation/analysis/filtered_SJ/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
 
 params <- c("default", "outSJfilterOverhangMin9", "outSJfilterOverhangMin6", "outSJfilterCountTotalMin3", "scoreGenomicLengthLog2scale0", "alignSJoverhangMin3")
-PRED_PATH <- "simulation/analysis/filtered_SJ/novel_exons_reduced_me_exon_"
+PRED_PATH <- "simulation/analysis/filtered_SJ/me_exon/novel_exons_"
 
 
-OUTDIR <- "simulation/analysis/exon_prediction_performance"
+OUTDIR <- "simulation/analysis/exon_prediction_performance/outSJfilterDistToOtherSJmin0/"
 
 ##  compare prediction to true removed exons
 removed <- read.table(REMOVED, header=TRUE) ## 261 removed exons
@@ -77,6 +77,7 @@ res_class <- data.frame(param = rep(NA, 3*length(params)), class = rep(NA, 3*len
 class <- unique(factor(removed$class))
 
 ind <- 1
+
 ## for each mapping parameter:
 for (p in params){
 	print(p)
@@ -108,7 +109,9 @@ for (p in params){
 		ind <- ind + 1
 	}
 }
-
+res_class$TP <- as.numeric(res_class$TP)
+res_class$FN <- as.numeric(res_class$FN)
+res_class$TPR <- as.numeric(res_class$TPR)
 
 
 
@@ -116,11 +119,8 @@ for (p in params){
 write.table(res, file.path(OUTDIR, "performance_tpr_ppv.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 write.table(res_class, file.path(OUTDIR, "performance_exon_class_tpr.txt"), sep = "\t", row.names = FALSE, quote=FALSE )
 
-
 ### plot the TPR for the different classes and parameters
-
-g <- ggplot(data = res_class, aes(x = param, y = TPR, color = class)) + geom_point(aes(size = 3)) +
-	+ theme_bw(axis.text.x=element_text(angle=45, hjust=1))
+g <- ggplot(data = res_class, aes(x = param, y = TPR, color = class)) + geom_point(size = 3) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1) )
 g
 ggsave(file.path(OUTDIR, "exon_class_tpr.pdf"))
 
@@ -140,6 +140,7 @@ removed_internal <- removed[which(!is.na(removed$lend) & !is.na(removed$rstart))
 novelExons <- read.table(NOVEL, header=TRUE) ## 170
 
 
+
 removed[,c("seqnames", "lend", "start", "end", "rstart", "strand")]
 library(dplyr)
 dplyr::setdiff(novelExons, removed[,c("seqnames", "lend", "start", "end", "rstart", "strand")]) ## FP predictions: 55
@@ -147,7 +148,7 @@ dplyr::setdiff(novelExons, removed[,c("seqnames", "lend", "start", "end", "rstar
 not_found <- dplyr::setdiff(removed[,c("seqnames", "lend", "start", "end", "rstart", "strand")], novelExons) ## all predictions are 
 # dplyr::intersect(novelExons, removed[,c("seqnames", "lend", "start", "end", "rstart")])
 
-predicted <- dplyr::semi_join(removed, novelExons) ## most are uniquee exons
+predicted <- dplyr::semi_join(removed, novelExons) ## most are unique exons
 missed <- dplyr::anti_join(removed, novelExons) ## most missed are overlapping or lowly expressed
 
 
