@@ -1,3 +1,5 @@
+cores: 12
+
 genome:
     "/home/Shared/data/seq/microexon_simulation/GRCh37.82/genome/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
 
@@ -35,6 +37,8 @@ star_param:
 tophat_param:
     default: ""
     microexons_search: "--microexon-search"
+
+hisat2_dir: /home/kathi/software/hisat2-2.1.0/
 
 
 ##directory with the EQP scripts

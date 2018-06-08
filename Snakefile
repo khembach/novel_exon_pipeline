@@ -88,9 +88,9 @@ rule all:
         # "simulation/analysis/stringtie/gffcompare/me_exon/minReadCoverage1_minIsoformAbundance0.05/outSJfilterOverhangMin6/stringtie.refmap"
         # expand("simulation/analysis/stringtie/gffcompare/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/stringtie.annotated.gtf",
         # which_reduced_gtf = "me_exon", stringtie_param = "minReadCoverage1_minIsoformAbundance0.05", test_dirnames = "outSJfilterOverhangMin6")
-        expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
-        which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
-
+        # expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
+        # which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
+        expand("simulation/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
 
 
 
@@ -114,16 +114,16 @@ rule all:
 
 ##################
 rule exon_truth:
-	input:
-		gtf = GTF,
-		sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
-		fastq1 = "simulation/simulated_data/simulated_reads_chr19_22_1.fq",
-		fastq2 = "simulation/simulated_data/simulated_reads_chr19_22_2.fq"
-	output:
-		"simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
-	threads: CORES
-	script:
-		"scripts/count_exon_truth.R"
+    input:
+        gtf = GTF,
+        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
+        fastq1 = "simulation/simulated_data/simulated_reads_chr19_22_1.fq",
+        fastq2 = "simulation/simulated_data/simulated_reads_chr19_22_2.fq"
+    output:
+        "simulation/analysis/GRCh37.85_chr19_22_all_exon_truth.txt"
+    threads: CORES
+    script:
+        "scripts/count_exon_truth.R"
 
 ##################
 
@@ -187,14 +187,14 @@ rule mapped_junction_count:
 
 ##################
 rule run_fastqc:
-	input:
-		fastq1 = "simulation/simulated_data/simulated_reads_chr19_22_1.fq",
-		fastq2 = "simulation/simulated_data/simulated_reads_chr19_22_2.fq"
-	output:
-		"simulation/fastqc/simulated_reads_chr19_22_1_fastqc.html",
-		"simulation/fastqc/simulated_reads_chr19_22_2_fastqc.html"
-	shell:
-		"fastqc -o simlation/fastqc/ {input.fastq1} {input.fastq2} "
+    input:
+        fastq1 = "simulation/simulated_data/simulated_reads_chr19_22_1.fq",
+        fastq2 = "simulation/simulated_data/simulated_reads_chr19_22_2.fq"
+    output:
+        "simulation/fastqc/simulated_reads_chr19_22_1_fastqc.html",
+        "simulation/fastqc/simulated_reads_chr19_22_2_fastqc.html"
+    shell:
+        "fastqc -o simlation/fastqc/ {input.fastq1} {input.fastq2} "
 
 
 
