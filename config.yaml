@@ -1,5 +1,7 @@
 cores: 12
 
+gtf : "annotation/Homo_sapiens.GRCh37.85_chr19_22.gtf"
+
 genome:
     "/home/Shared/data/seq/microexon_simulation/GRCh37.82/genome/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
 

@@ -36,9 +36,11 @@ STAR_PARAMS_DIRNAME = ["default", "default_2_pass", "outSJfilterOverhangMin9", "
 
 ### sub sections of the workflow:
 include: "rules/rsem_simulation.smk"
+include: "rules/mapping_comparison.smk"
 include: "rules/mapping.smk"
 include: "rules/predict_novel_splicing_events.smk"
 include: "rules/quantification.smk"
+
 
 
 rule all:
@@ -90,8 +92,8 @@ rule all:
         # which_reduced_gtf = "me_exon", stringtie_param = "minReadCoverage1_minIsoformAbundance0.05", test_dirnames = "outSJfilterOverhangMin6")
         # expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
         # which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
-        expand("simulation/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
-
+        # expand("simulation/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
+        expand("simulation/mapped_truth/{mapper}/{test_dirnames}/{bam_name}_mapped_truth.txt", mapper = "hisat2", test_dirnames = config["reduced_exons"], bam_name = "hisat2")
 
 
 # rule test:
