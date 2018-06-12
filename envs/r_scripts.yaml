@@ -7,3 +7,7 @@ dependencies:
    - bioconductor-GenomicAlignments
    - bioconductor-Rsamtools
    - r-stringr
+   - r-dplyr
+   - r-ggplot2
+   - r-tidyr
+   - r-data.table

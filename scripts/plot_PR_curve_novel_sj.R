@@ -98,8 +98,8 @@ compute_pr_rec <- function(novelExons, nr_removed){
 dat_all <- compute_pr_rec(novelExons, nrow(removed))
 precision_all <- dat_all %>% select(min_reads, precision)
 
-p <- ggplot(dat_all, aes(x=recall, y = precision)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle(paste0("All removed exons (", nrow(removed), ")"))
-ggsave(paste0(OUTDIR, "PR.png"), p, device = "png") 
+p <- ggplot(dat_all, aes(x=recall, y = precision)) + geom_path(size = 1.5) + theme_bw(base_size = 14) + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle(paste0("All removed exons (", nrow(removed), ")"))
+ggsave(paste0(OUTDIR, "PR.pdf"), p, device = "pdf", height = 5, width = 6) 
 
 
 
@@ -133,11 +133,11 @@ names(dat_min_junc) <- names(id_min_junc)
 dat_min_junc <- rbindlist(dat_min_junc, idcol = "after_mapping")
 dat_min_junc <- left_join(dat_min_junc, precision_all) ## add the corresponding precision value from all predictions 
 
-p <-  ggplot(dat_min_junc, aes(x = min_reads, y =recall, color = after_mapping)) + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1))+ ggtitle("Exons with >0 mapped junction reads")
-ggsave(paste0(OUTDIR, "rec_junc_read.png"), p, device = "png")
+p <-  ggplot(dat_min_junc, aes(x = min_reads, y =recall, color = after_mapping)) + geom_path(size = 1.5) + theme_bw(base_size = 14) + ylim(c(0, 1))+ ggtitle("Exons with >0 mapped junction reads")
+ggsave(paste0(OUTDIR, "rec_junc_read.pdf"), p, device = "pdf", height = 5, width = 6)
 
-p <- ggplot(dat_min_junc, aes(x = recall, y = precision, color = after_mapping))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1))  + geom_point() + ggtitle("All removed exons")+ ylab("precision (all exons)")
-ggsave(paste0(OUTDIR, "PR_junc_reads.png"), p, device = "png")
+p <- ggplot(dat_min_junc, aes(x = recall, y = precision, color = after_mapping))  + geom_path(size = 1.5) + theme_bw(base_size = 14) + ylim(c(0, 1)) + xlim(c(0,1))  + geom_point() + ggtitle("All removed exons")+ ylab("precision (all exons)")
+ggsave(paste0(OUTDIR, "PR_junc_reads.pdf"), p, device = "pdf", height = 5, width = 6)
 
 
 ####### From here on, we only consider the exons with at least 1 junction read
@@ -158,8 +158,8 @@ names(dat_class) <- names(id_class)
 dat_class <- rbindlist(dat_class, idcol = "class")
 dat_class <- left_join(dat_class, precision_all) ## add the corresponding precision value from all predictions 
 
-p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw() + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1))+ ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
-ggsave(paste0(OUTDIR, "PR_class.png"), p, device = "png")
+p <- ggplot(dat_class, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5) + theme_bw(base_size = 14) + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1))+ ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
+ggsave(paste0(OUTDIR, "PR_class.pdf"), p, device = "pdf", height = 5, width = 6)
 
 ###### me, normal exons
 id_type <- split(removed$ID, removed$type)  ## all IDs that belong to a certain class
@@ -174,8 +174,8 @@ dat_type <- lapply( names(id_type), function(x) compute_pr_rec( dat_type[[x]], l
 names(dat_type) <- names(id_type)
 dat_type <- rbindlist(dat_type, idcol = "type")
 
-p <- ggplot(dat_type, aes(x = recall, y = precision, color = type ))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
-ggsave(paste0(OUTDIR, "PR_exon_type.png"), p, device = "png")
+p <- ggplot(dat_type, aes(x = recall, y = precision, color = type ))  + geom_path(size = 1.5) + theme_bw(base_size = 14) + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
+ggsave(paste0(OUTDIR, "PR_exon_type.pdf"), p, device = "pdf", height = 5, width = 6)
 
 
 ###### cassette exons, terminal exon
@@ -192,8 +192,8 @@ dat_location <- lapply( names(id_location), function(x) compute_pr_rec( dat_loca
 names(dat_location) <- names(id_location)
 dat_location <- rbindlist(dat_location, idcol = "location")
 
-p <- ggplot(dat_location, aes(x = recall, y = precision, color = location ))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
-ggsave(paste0(OUTDIR, "PR_exon_location.png"), p, device = "png")
+p <- ggplot(dat_location, aes(x = recall, y = precision, color = location ))  + geom_path(size = 1.5) + theme_bw(base_size = 14) + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)")
+ggsave(paste0(OUTDIR, "PR_exon_location.pdf"), p, device = "pdf", height = 5, width = 6)
 
 
 ###### low and high expressed exons: simulated number of reads below or above median
@@ -213,8 +213,8 @@ names(dat_expr) <- names(id_expr)
 dat_expr <- rbindlist(dat_expr, idcol = "expression")
 dat_expr <- left_join(dat_expr, precision_all) ## add the corresponding precision value from all predictions 
 
-p <- ggplot(dat_expr, aes(x = recall, y = precision, color = expression))  + geom_path(size = 1.5) + theme_bw() + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads") + ylab("precision (all mapped exons)")
-ggsave(paste0(OUTDIR, "PR_expression.png"), p, device = "png")
+p <- ggplot(dat_expr, aes(x = recall, y = precision, color = expression))  + geom_path(size = 1.5) + theme_bw(base_size = 14) + ylim(c(0, 1)) + xlim(c(0,1)) + ggtitle("Exons with >0 mapped junction reads") + ylab("precision (all mapped exons)")
+ggsave(paste0(OUTDIR, "PR_expression.pdf"), p, device = "pdf", height = 5, width = 6 )
 
 
 ### low and high expression, AND different classes
@@ -242,9 +242,9 @@ dat_class_expr <- lapply(dat_class_expr, function(x) rbindlist(x, idcol="expr" )
 dat_class_expr <- rbindlist(dat_class_expr, idcol = "class")
 dat_class_expr <- left_join(dat_class_expr, precision_all) ## add the corresponding precision value from all predictions 
 
-p <- ggplot(dat_class_expr, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5, aes(linetype = expr ) ) + theme_bw() + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1))+ ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)") + 
+p <- ggplot(dat_class_expr, aes(x = recall, y = precision, color = class))  + geom_path(size = 1.5, aes(linetype = expr ) ) + theme_bw(base_size = 14) + geom_point()+ ylim(c(0, 1)) + xlim(c(0,1))+ ggtitle("Exons with >0 mapped junction reads")+ ylab("precision (all mapped exons)") + 
 scale_linetype_manual(values=c("solid", "twodash"))
-ggsave(paste0(OUTDIR, "PR_class_expr.png"), p, device = "png")
+ggsave(paste0(OUTDIR, "PR_class_expr.pdf"), p, device = "pdf", height = 5, width = 6)
 
 
 

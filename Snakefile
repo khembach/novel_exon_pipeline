@@ -78,13 +78,10 @@ rule all:
         # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
         # expand( "simulation/analysis/mapped_junction_count/removed_{removed_exon}_unique_classified_{test_dirnames}_junc_count.txt",
         # removed_exon = config["reduced_gtf"], test_dirnames = config["star_param"])
-        # expand("simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
-        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
-        # expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
-        # which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
+        # expand("simulation/analysis/exon_prediction_performance/PR/{which_reduced_gtf}/{test_dirnames}/PR_expression.png", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        # expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"] )
         # "simulation/analysis/stringtie/me_exon/outSJfilterOverhangMin6_stringtie.gtf"
-        # expand("simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.png",
-        # which_reduced_gtf = config["reduced_gtf"], stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6" ),
+        expand("simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.pdf", which_reduced_gtf = config["reduced_gtf"], stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6" ),
         # expand("simulation/analysis/stringtie/derived_Salmon_counts/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/salmon_coverage_count.txt",
         # which_reduced_gtf = "me_exon", stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6" )
         # "simulation/analysis/stringtie/gffcompare/me_exon/minReadCoverage1_minIsoformAbundance0.05/outSJfilterOverhangMin6/stringtie.refmap"
@@ -93,7 +90,7 @@ rule all:
         # expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
         # which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
         # expand("simulation/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
-        expand("simulation/mapped_truth/{mapper}/{test_dirnames}/{bam_name}_mapped_truth.txt", mapper = "hisat2", test_dirnames = config["reduced_exons"], bam_name = "hisat2")
+        # expand("simulation/mapped_truth/{mapper}/{test_dirnames}/{bam_name}_mapped_truth.txt", mapper = "hisat2", test_dirnames = config["reduced_exons"], bam_name = "hisat2")
 
 
 # rule test:

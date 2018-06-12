@@ -86,8 +86,10 @@ rule plot_PR_curve:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
         prediction = "simulation/analysis/filtered_SJ/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     output:
-        "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.png",
+        "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf",
         outdir = "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/"
+    conda:
+         "../envs/r_scripts.yaml"
     script:
         "../scripts/plot_PR_curve_novel_sj.R"
 
@@ -155,8 +157,10 @@ rule plot_PR_curve_stringtie:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
         prediction = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt"
     output:
-        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.png",
+        "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.pdf",
         outdir = "simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/"
+    conda:
+         "../envs/r_scripts.yaml"
     script:
         "../scripts/plot_PR_curve_novel_sj.R"
 
