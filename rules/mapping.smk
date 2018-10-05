@@ -209,9 +209,9 @@ rule convert_bam:
 
 rule sort_bam:
     input:
-        bam = "simulation/mapping/{test_dirnames}/{bam_name}.bam",
+        bam = "simulation/mapping/{which_reduced_gtf}/{bam_name}.bam",
     output:
-        bam_sorted = protected("simulation/mapping/{test_dirnames}/{bam_name}_s.bam"),
+        bam_sorted = protected("simulation/mapping/{which_reduced_gtf}/{bam_name}_s.bam"),
     threads:
         4
     shell:
@@ -220,9 +220,9 @@ rule sort_bam:
 
 rule index_bam:
     input:
-        bam = "simulation/mapping/{test_dirnames}/{bam_name}_s.bam",
+        bam = "simulation/mapping/{which_reduced_gtf}/{bam_name}_s.bam",
     output:
-        bam_indexed = "simulation/mapping/{test_dirnames}/{bam_name}_s.bam.bai",
+        bam_indexed = "simulation/mapping/{which_reduced_gtf}/{bam_name}_s.bam.bai",
     threads:
         4
     shell:
