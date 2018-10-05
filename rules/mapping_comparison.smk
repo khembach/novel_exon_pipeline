@@ -11,16 +11,19 @@
 
 # --> plot the true novel exon count together with the exon count of the different mappers?
 
+import os
 
 
 rule compute_mapped_truth:
     input:
-        bam = "simulation/mapping/{mapper}/{test_dirnames}/{bam_name}_s.bam",
+        bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{bam_name}_s.bam",
         gtf = config["gtf"],
         sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results"
     conda:
          "../envs/r_scripts.yaml"
     output:
-        outfile = "simulation/mapped_truth/{mapper}/{test_dirnames}/{bam_name}_mapped_truth.txt"
+        outfile = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt"
     script:
         "../scripts/mapped_truth.R"        
+
+
