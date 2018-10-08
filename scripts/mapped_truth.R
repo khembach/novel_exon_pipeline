@@ -19,6 +19,22 @@ OUTFILE <- snakemake@output[["outfile"]]
 # BAM <- "simulation/mapping/STAR/me_exon/default/pass2_Aligned.out_s.bam"
 
 
+#' Mapped truth of BAM file
+#'
+#' Computes the sum of offsets between the genomic locations of a read-pair in 
+#' the BAM file with the true simulated location. The offsets from all read-pairs
+#' are summarized in a count table.
+#' 
+#' @param bam BAM file
+#' @param gtf GTF file with genome annotation
+#' @param sim_isoforms_results SAMPLE.sim.isoforms.results output from RSEM for 
+#' the BAM file sample
+#' @param verbose print status messages
+#'
+#' @return data.frame with count table of offsets
+#' @export
+#'
+#' @examples
 mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
   if(verbose) print("Loading GTF and sim.isoforms.results")
   gtf <- import(GTF)
@@ -33,7 +49,7 @@ mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
 
   if(verbose) print("Creating transcriptome ranges from read header")
   ## get the transcriptomic ranges from each simulated read
-  read_tr_range <-  str_split(string = names(aln), pattern = "_", simplify = TRUE)[,c(3, 4, 5)] 
+  read_tr_range <-  str_split(string = names(aln), pattern = "_", simplify=TRUE)[,c(3, 4, 5)] 
   colnames(read_tr_range) <- c("sid", "pos", "insertL")
   read_tr_range <- apply(read_tr_range,  2, as.numeric)
   read_tr_range <- as.data.frame(read_tr_range)
@@ -45,7 +61,7 @@ mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
     dplyr::mutate(start1 = length-pos-100,  ## read length 101
                   end1 = length-pos,
                   start2 = length-pos-insertL+1,
-                  end2 = length-pos-insertL+101,#or +102
+                  end2 = length-pos-insertL+101
                   )
   ## transcriptome ranges for read 1 and read 2
   tr_ranges1 <- GRanges(read_tr_range$transcript_id, 
@@ -62,7 +78,7 @@ mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
   read1_genome_range <- mapFromTranscripts(tr_ranges1, tr_granges)
   read2_genome_range <- mapFromTranscripts(tr_ranges2, tr_granges)
 
-  if(verbose) print("Comparing mapped and true read locations"
+  if(verbose) print("Comparing mapped and true read locations")
   ## Compute the offset of the true and the actual mapping start/end per read
   offset_read1 <- abs(start(read1_genome_range) - start(GenomicAlignments::first(aln))) +
                   abs(end(read1_genome_range) - end(GenomicAlignments::first(aln)))
@@ -72,11 +88,11 @@ mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
   offset <- offset_read1 + offset_read2
 
   ## count the occurrence of a certain offset; everything with offset >=101 is binned 
-  data.frame(offset=seq(0,101), count = binCounts(offset, bx=c(seq(0,101),max(offset)) ))
+  data.frame(offset=seq(0,101), count = binCounts(offset, bx=c(seq(0,101), max(offset)) ))
 }
 
 
-offset_tab <- mapped_offset(BAM, GTF, SIM_ISOFORMS_RESULTS, verbose = TRUE)
+offset_tab <- mapped_offset(BAM, GTF, SIM_ISOFORMS_RESULTS, verbose=TRUE)
 
 print("Writing results")
 write.table(offset_tab, file=OUTFILE, quote=FALSE, sep="\t", row.names=FALSE)
