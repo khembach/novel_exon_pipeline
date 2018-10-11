@@ -42,76 +42,91 @@ read_offsets <- function(file){
 }
 
 
+#' Offset distribution plots
+#' 
+#' Create plots to show the distribution of offsets in the hisat2 and star alignments.
+#'
+#' @param offset_files vector with paths to the offset tables
+#' @param outdir path to the output directory in which the plots will be saved
+#'
+#' @return
+#' @export
+#'
+#' @examples
+plot_offset_distribution <- function(offset_files, outdir, prefix) {
+  ###############
+  ## Read the offset files
+  offset_tabs <- lapply(offset_files, read_offsets)
+  dat <- do.call("rbind", offset_tabs)
+  dat$mapper <- as.factor(dat$mapper)
+  dat$removed_annotation <- as.factor(dat$removed_annotation)
+  dat$parameter <- as.factor(dat$parameter)
+  
+  ###########
+  ## Plot the offset distributions
+  p <- ggplot(dat, aes(x=offset, y=count, color = parameter)) +
+    geom_line(alpha=0.5) + 
+    facet_grid(rows = vars(removed_annotation), cols = vars(mapper), scales="fixed") +
+    theme_bw() +
+    scale_y_log10() +
+    theme(legend.position="bottom")
+  ggsave(file.path(OUTDIR, paste0(prefix, "_mapped_offset_comparison.png")), p, width=7, height = 6)
+  
+  ## compute the sum of wrong reads (offset >=101), the shifted reads (offset between
+  ## 1 and 100) and the correct reads (offset == 0)
+  dat_sums <- dat %>% 
+    dplyr::group_by(removed_annotation, parameter, mapper) %>% 
+    dplyr::summarize(correct = count[offset == 0], 
+                     shifted = sum(count[offset>0 & offset<101]), 
+                     wrong = count[offset == 101])
+  ## transform to long format
+  dat_sums <- dat_sums %>% 
+    gather(key = read_mapping, value = count, correct, shifted, wrong, factor_key = TRUE)
+  ## compute percentage
+  dat_sums <- dat_sums %>%
+    dplyr::group_by(removed_annotation, parameter, mapper) %>%
+    dplyr::mutate(total = sum(count),
+                  percentage = count/total)
+  
+  ## write the count tabel to file
+  write.table(dat_sums, file.path(OUTDIR,  paste0(prefix, "_read_offset_table.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
+  
+  ###########
+  ## Barplot
+  p <- ggplot(dat_sums, aes(x = read_mapping, y = count, fill = parameter)) +
+    geom_col(position = "dodge") +
+    facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
+    scale_y_log10() + 
+    theme_bw() +
+    theme(legend.position="bottom")
+  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_count_barplot.png")), p, width = 7, height = 7)
+  
+  p <- ggplot(dat_sums, aes(x = read_mapping, y = percentage, fill = parameter)) +
+    geom_col(position = "dodge") +
+    facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
+    theme_bw() +
+    theme(legend.position="bottom")
+  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_perc_barplot.png")), p, width = 7, height = 7)
+  
+}
+
+
 ###############
 ## Parameters
-
 OFFSET_DIR <- snakemake@input[["offset_dir"]]
 OUTDIR <- snakemkae@output[["outdir"]]
-# OFFSET_DIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapped_truth"
-# OUTDIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_offset/"
+
+# OFFSET_DIR <- "../simulation/mapped_truth"
+# OUTDIR <- "../simulation/analysis/mapped_offset/"
 
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-
-###############
-## Read the offset files
+#############
+## Plotting
 offset_files <- list.files(OFFSET_DIR, pattern = "mapped_truth.txt", recursive = TRUE)
-offset_tabs <- lapply(offset_files, read_offsets)
-dat <- do.call("rbind", offset_tabs)
-dat$mapper <- as.factor(dat$mapper)
-dat$removed_annotation <- as.factor(dat$removed_annotation)
-dat$parameter <- as.factor(dat$parameter)
+plot_offset_distribution(offset_files, OUTDIR, prefix = "all_reads")
 
-###########
-## Plot the offset distributions
-p <- ggplot(dat, aes(x=offset, y=count, color = parameter)) +
-  geom_line(alpha=0.5) + 
-  facet_grid(rows = vars(removed_annotation), cols = vars(mapper), scales="fixed") +
-  theme_bw() +
-  scale_y_log10() +
-  theme(legend.position="bottom")
-p
-ggsave(file.path(OUTDIR, "mapped_offset_comparison.png"), p, width=7, height = 6)
-
-
-## compute the sum of wrong reads (offset >=101), the shifted reads (offset between
-## 1 and 100) and the correct reads (offset == 0)
-dat_sums <- dat %>% 
-  dplyr::group_by(removed_annotation, parameter, mapper) %>% 
-  dplyr::summarize(correct = count[offset == 0], 
-            shifted = sum(count[offset>0 & offset<101]), 
-            wrong = count[offset == 101])
-## transform to long format
-dat_sums <- dat_sums %>% 
-  gather(key = read_mapping, value = count, correct, shifted, wrong, factor_key = TRUE)
-## compute percentage
-dat_sums <- dat_sums %>%
-  dplyr::group_by(removed_annotation, parameter, mapper) %>%
-  dplyr::mutate(total = sum(count),
-                percentage = count/total)
-  
-## write the count tabel to file
-write.table(dat_sums, file.path(OUTDIR, "read_offset_table.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
-
-###########
-## Barplot
-p <- ggplot(dat_sums, aes(x = read_mapping, y = count, fill = parameter)) +
-  geom_col(position = "dodge") +
-  facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
-  scale_y_log10() + 
-  theme_bw() +
-  theme(legend.position="bottom")
-p
-ggsave(file.path(OUTDIR, "mapped_offset_count_barplot.png"), p, width=7, height = 7)
-
-
-p <- ggplot(dat_sums, aes(x = read_mapping, y = percentage, fill = parameter)) +
-  geom_col(position = "dodge") +
-  facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
-  theme_bw() +
-  theme(legend.position="bottom")
-p
-ggsave(file.path(OUTDIR, "mapped_offset_perc_barplot.png"), p, width=7, height = 7)
-
+offset_files <- list.files(OFFSET_DIR, pattern = "mapped_truth_removed_exons.txt", recursive = TRUE)
+plot_offset_distribution(offset_files, OUTDIR, prefix = "reads_removed_exons")
