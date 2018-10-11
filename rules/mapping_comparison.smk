@@ -14,16 +14,36 @@
 import os
 
 
-rule compute_mapped_truth:
+rule compute_mapped_truth_hisat:
     input:
         bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{bam_name}_s.bam",
         gtf = config["gtf"],
-        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results"
+        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
+        removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.which_reduced_gtf]
+    params:
+        outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_"
     conda:
          "../envs/r_scripts.yaml"
     output:
-        outfile = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt"
+        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt",
+        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth_removed_exons.txt"
+
     script:
-        "../scripts/mapped_truth.R"        
+        "../scripts/mapped_truth.R"
 
 
+rule compute_mapped_truth_star:
+    input:
+        bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam",
+        gtf = config["gtf"],
+        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
+        removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.which_reduced_gtf]
+    params:
+        outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_"
+    conda:
+         "../envs/r_scripts.yaml"
+    output: 
+        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth.txt",
+        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth_removed_exons.txt"
+    script:
+        "../scripts/mapped_truth.R"

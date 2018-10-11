@@ -11,12 +11,43 @@ library(GenomicFeatures)
 BAM <- snakemake@input[["bam"]]
 GTF <- snakemake@input[["gtf"]]
 SIM_ISOFORMS_RESULTS <- snakemake@input[["sim_iso_res"]]
-OUTFILE <- snakemake@output[["outfile"]]
+OUTPREFIX <- snakemake@params[["outprefix"]]
+REMOVED_GTF <- snakemake@input[["removed_gtf"]]
 
 # GTF <- "annotation/Homo_sapiens.GRCh37.85_chr19_22.gtf"
 # SIM_ISOFORMS_RESULTS <- "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results"
 # OUTFILE <- "simulation/mapped_truth/STAR/me_exon/default_mapped_truth.txt"
 # BAM <- "simulation/mapping/STAR/me_exon/default/pass2_Aligned.out_s.bam"
+#  REMOVED_GTF <- "simulation/reduced_GTF/removed_me_exon.gtf"
+# OUTPREFIX <- "simulation/mapped_truth/star/me_exon/default/star_"
+
+#' Offset of aligned reads and their true location
+#' 
+#' Create a count table with the occurrence of a specific offset. The offset is 
+#' the difference of read start and end of the forward and reverse read of paired-
+#' end reads.
+#'
+#' @param read1_truth GRanges with the true location of read1
+#' @param read2_truth GRanges with the true lcoation of read2 
+#' @param aln GAlignmentPairs with the aligned of the paired-end reads
+#'
+#' @return data.frame with the offset (0 to 100, >=101) and the corresponding 
+#'         read count
+#' @export
+#'
+#' @examples
+compute_read_offset <- function(read1_truth, read2_truth, aln){
+  offset_read1 <- abs(start(read1_truth) - start(GenomicAlignments::first(aln))) +
+                  abs(end(read1_truth) - end(GenomicAlignments::first(aln)))
+  offset_read2 <- abs(start(read2_truth) - start(GenomicAlignments::second(aln))) +
+                  abs(end(read2_truth) - end(GenomicAlignments::second(aln)))
+  ## offset of the read pair
+  offset <- offset_read1 + offset_read2
+
+  ## count the occurrence of a certain offset; everything with offset >=101 is binned 
+  data.frame(offset = seq(0,101), 
+             count = binCounts(offset, bx=c(seq(0,101), max(offset))))
+}
 
 
 #' Mapped truth of BAM file
@@ -35,17 +66,17 @@ OUTFILE <- snakemake@output[["outfile"]]
 #' @export
 #'
 #' @examples
-mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
+write_offset_tables <- function(bam, gtf_file, sim_isoforms_results, removed_gtf_file, outprefix, verbose=FALSE){
   if(verbose) print("Loading GTF and sim.isoforms.results")
-  gtf <- import(GTF)
+  gtf <- import(gtf_file)
 
-  iso_results <- read.table(SIM_ISOFORMS_RESULTS, header=TRUE)
+  iso_results <- read.table(sim_isoforms_results, header=TRUE)
   iso_results <- cbind(iso_results,sid=1:nrow(iso_results))
   ## sid = represent which transcript this read is simulated from.
 
   if(verbose) print("Reading BAM file")
   ## read the BAM file
-  aln <- readGAlignmentPairs(BAM, strandMode=2, use.names=TRUE)
+  aln <- readGAlignmentPairs(bam, strandMode=2, use.names=TRUE)
 
   if(verbose) print("Creating transcriptome ranges from read header")
   ## get the transcriptomic ranges from each simulated read
@@ -78,22 +109,31 @@ mapped_offset <- function(bam, gtf, sim_isoforms_results, verbose=FALSE){
   read1_genome_range <- mapFromTranscripts(tr_ranges1, tr_granges)
   read2_genome_range <- mapFromTranscripts(tr_ranges2, tr_granges)
 
+  if(verbose) print("Filter reads from removed exons")
+  ## We want all reads that were simulated from one of the exons that were
+  ## removed from the gtf annotation.
+  r_gtf <- import(removed_gtf_file)
+
+  ## only keep the read pairs where any of the single reads overlaps with the location of the removed exons
+  reads1_r <- subsetByOverlaps(read1_genome_range, r_gtf)
+  reads2_r <- subsetByOverlaps(read2_genome_range, r_gtf)
+  r_ind <- unique(c(reads1_r$xHits, reads2_r$xHits))
+  aln_r <- aln[r_ind]
+  read1_r_genome_range <- read1_genome_range[r_ind]
+  read2_r_genome_range <- read2_genome_range[r_ind]
+  
   if(verbose) print("Comparing mapped and true read locations")
   ## Compute the offset of the true and the actual mapping start/end per read
-  offset_read1 <- abs(start(read1_genome_range) - start(GenomicAlignments::first(aln))) +
-                  abs(end(read1_genome_range) - end(GenomicAlignments::first(aln)))
-  offset_read2 <- abs(start(read2_genome_range) - start(GenomicAlignments::second(aln))) +
-                  abs(end(read2_genome_range) - end(GenomicAlignments::second(aln)))
-  ## offset of the read pair
-  offset <- offset_read1 + offset_read2
+  offset_tab <- compute_read_offset(read1_genome_range, read2_genome_range, aln)
+  write.table(offset_tab, 
+              file=paste0(outprefix, "mapped_truth.txt"), 
+              quote=FALSE, sep="\t", row.names=FALSE)
+  ## reads from removed exons
+  offset_tab_r <- compute_read_offset(read1_r_genome_range, read2_r_genome_range, aln_r)
+  write.table(offset_tab_r, 
+              file=paste0(outprefix, "mapped_truth_removed_exons.txt"), 
+              quote=FALSE, sep="\t", row.names=FALSE)
+} 
 
-  ## count the occurrence of a certain offset; everything with offset >=101 is binned 
-  data.frame(offset=seq(0,101), count = binCounts(offset, bx=c(seq(0,101), max(offset)) ))
-}
 
-
-offset_tab <- mapped_offset(BAM, GTF, SIM_ISOFORMS_RESULTS, verbose=TRUE)
-
-print("Writing results")
-write.table(offset_tab, file=OUTFILE, quote=FALSE, sep="\t", row.names=FALSE)
-
+write_offset_tables(BAM, GTF, SIM_ISOFORMS_RESULTS, REMOVED_GTF, OUTPREFIX, verbose=TRUE)
