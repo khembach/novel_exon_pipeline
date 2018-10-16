@@ -23,11 +23,10 @@ rule compute_mapped_truth_hisat:
     params:
         outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_"
     conda:
-         "../envs/r_scripts.yaml"
+        "../envs/r_scripts.yaml"
     output:
         "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt",
         "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth_removed_exons.txt"
-
     script:
         "../scripts/mapped_truth.R"
 
@@ -41,9 +40,25 @@ rule compute_mapped_truth_star:
     params:
         outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_"
     conda:
-         "../envs/r_scripts.yaml"
+        "../envs/r_scripts.yaml"
     output: 
         "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth.txt",
         "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth_removed_exons.txt"
     script:
         "../scripts/mapped_truth.R"
+
+
+rule plot_mapping_offsets:
+    input:
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2"),
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth_removed_exons.txt", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2"),
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth.txt", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out"),
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth_removed_exons.txt", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out"),
+        offset_dir = "simulation/mapped_truth"
+    params:
+        outdir = "simulation/analysis/mapped_offset"
+    output:
+        "simulation/analysis/mapped_offset/all_reads_read_offset_table.txt",
+        "simulation/analysis/mapped_offset/reads_removed_exons_read_offset_table.txt"
+    script:
+        "../scripts/plot_mapping_offset.R"

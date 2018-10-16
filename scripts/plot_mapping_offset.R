@@ -88,7 +88,7 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
     dplyr::mutate(total = sum(count),
                   percentage = count/total)
   
-  ## write the count tabel to file
+  ## write the count table to file
   write.table(dat_sums, file.path(OUTDIR,  paste0(prefix, "_read_offset_table.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
   
   ###########
@@ -114,7 +114,7 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
 ###############
 ## Parameters
 OFFSET_DIR <- snakemake@input[["offset_dir"]]
-OUTDIR <- snakemkae@output[["outdir"]]
+OUTDIR <- snakemake@params[["outdir"]]
 
 # OFFSET_DIR <- "../simulation/mapped_truth"
 # OUTDIR <- "../simulation/analysis/mapped_offset/"

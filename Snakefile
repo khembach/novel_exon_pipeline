@@ -90,15 +90,9 @@ rule all:
         # expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
         # which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
         # expand("simulation/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
-        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2"),
-        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth.txt", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out")
+        "simulation/analysis/mapped_offset/all_reads_read_offset_table.txt",
+        "simulation/analysis/mapped_offset/reads_removed_exons_read_offset_table.txt"
 
-
-# rule test:
-#     conda:
-#         "envs/test.yaml"
-#     shell:
-#         "python --version"
 
 
 ##################
@@ -218,3 +212,19 @@ rule run_fastqc:
 ## Salmon derived counts
 ## --> discovery of novel splicing events from the STAR splice junctions
 ## or using SGseq
+
+
+
+
+
+##################
+
+# Mapping comparison
+
+##################
+
+
+rule mapping_offset_comparison:
+    input:
+        "simulation/analysis/mapped_offset/all_reads_read_offset_table.txt",
+        "simulation/analysis/mapped_offset/reads_removed_exons_read_offset_table.txt"
