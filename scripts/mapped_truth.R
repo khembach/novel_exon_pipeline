@@ -23,16 +23,15 @@ REMOVED_GTF <- snakemake@input[["removed_gtf"]]
 
 #' Offset of aligned reads and their true location
 #' 
-#' Create a count table with the occurrence of a specific offset. The offset is 
-#' the difference of read start and end of the forward and reverse read of paired-
-#' end reads.
+#' Create an integer vector with the offset per read pair. The offset is 
+#' the difference of read start and end of the forward and reverse reads
+#' with the true genomic location of the reads.
 #'
 #' @param read1_truth GRanges with the true location of read1
 #' @param read2_truth GRanges with the true lcoation of read2 
-#' @param aln GAlignmentPairs with the aligned of the paired-end reads
+#' @param aln GAlignmentPairs with the aligned paired-end reads
 #'
-#' @return data.frame with the offset (0 to 100, >=101) and the corresponding 
-#'         read count
+#' @return integer vector with the offset per read pair
 #' @export
 #'
 #' @examples
@@ -42,11 +41,29 @@ compute_read_offset <- function(read1_truth, read2_truth, aln){
   offset_read2 <- abs(start(read2_truth) - start(GenomicAlignments::second(aln))) +
                   abs(end(read2_truth) - end(GenomicAlignments::second(aln)))
   ## offset of the read pair
-  offset <- offset_read1 + offset_read2
+  offset_read1 + offset_read2
+}
 
-  ## count the occurrence of a certain offset; everything with offset >=101 is binned 
-  data.frame(offset = seq(0,101), 
-             count = binCounts(offset, bx=c(seq(0,101), max(offset))))
+#' Soft clipped bases per read pair
+#' 
+#' Compute the number of soft clipped bases per read pair.
+#'
+#' @param aln GAlignmentPairs with the aligned paired-end reads
+#'
+#' @return integer vector with the number of soft clipped bases per read pair
+#' @export
+#'
+#' @examples
+soft_clipped_per_pair <- function(aln){
+  sc_read1 <- cigar( GenomicAlignments::first(aln)) %>% 
+    cigarOpTable
+  sc_read1 <- sc_read1[,"S"]
+  
+  sc_read2 <- cigar( GenomicAlignments::second(aln)) %>% 
+    cigarOpTable
+  sc_read2 <- sc_read2[,"S"]
+  
+  sc_read1 + sc_read2
 }
 
 
@@ -109,6 +126,9 @@ write_offset_tables <- function(bam, gtf_file, sim_isoforms_results, removed_gtf
   read1_genome_range <- mapFromTranscripts(tr_ranges1, tr_granges)
   read2_genome_range <- mapFromTranscripts(tr_ranges2, tr_granges)
 
+  ## get the number of soft clipped bases per read
+  sc_pair <- soft_clipped_per_pair(aln)
+  
   if(verbose) print("Filter reads from removed exons")
   ## We want all reads that were simulated from one of the exons that were
   ## removed from the gtf annotation.
@@ -124,14 +144,25 @@ write_offset_tables <- function(bam, gtf_file, sim_isoforms_results, removed_gtf
   
   if(verbose) print("Comparing mapped and true read locations")
   ## Compute the offset of the true and the actual mapping start/end per read
-  offset_tab <- compute_read_offset(read1_genome_range, read2_genome_range, aln)
+  offset <- compute_read_offset(read1_genome_range, read2_genome_range, aln)
+  ## count the occurrence of a certain offset; everything with offset >=101 is binned 
+  offset_tab<- data.frame(offset = seq(0,101), 
+             count = binCounts(offset, bx=c(seq(0,101), max(offset))))
   write.table(offset_tab, 
-              file=paste0(outprefix, "mapped_truth.txt"), 
+              file=paste0(outprefix, "offset_counts.txt"), 
+              quote=FALSE, sep="\t", row.names=FALSE)
+  write.table(data.frame(offset = offset, soft_clipped = sc_pair), 
+              file=paste0(outprefix, "offset_soft_clipped.txt"), 
               quote=FALSE, sep="\t", row.names=FALSE)
   ## reads from removed exons
-  offset_tab_r <- compute_read_offset(read1_r_genome_range, read2_r_genome_range, aln_r)
+  offset_r <- compute_read_offset(read1_r_genome_range, read2_r_genome_range, aln_r)
+  offset_tab_r <- data.frame(offset_r = seq(0,101), 
+                          count = binCounts(offset, bx=c(seq(0,101), max(offset))))
   write.table(offset_tab_r, 
-              file=paste0(outprefix, "mapped_truth_removed_exons.txt"), 
+              file=paste0(outprefix, "offset_counts_removed_exons.txt"), 
+              quote=FALSE, sep="\t", row.names=FALSE)
+  write.table(data.frame(offset = offset_r, soft_clipped = sc_pair[r_ind]), 
+              file=paste0(outprefix, "offset_soft_clipped_removed_exons.txt"), 
               quote=FALSE, sep="\t", row.names=FALSE)
 } 
 

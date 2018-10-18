@@ -25,8 +25,7 @@ rule compute_mapped_truth_hisat:
     conda:
         "../envs/r_scripts.yaml"
     output:
-        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt",
-        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth_removed_exons.txt"
+        expand("simulation/mapped_truth/{{mapper}}/{{which_reduced_gtf}}/{{bam_name}}{suffix}", suffix=["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"])
     script:
         "../scripts/mapped_truth.R"
 
@@ -42,19 +41,16 @@ rule compute_mapped_truth_star:
     conda:
         "../envs/r_scripts.yaml"
     output: 
-        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth.txt",
-        "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth_removed_exons.txt"
+        expand("simulation/mapped_truth/{{mapper}}/{{which_reduced_gtf}}/{{test_dirnames}}/{{bam_name}}{suffix}", suffix=["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"])
     script:
         "../scripts/mapped_truth.R"
 
 
 rule plot_mapping_offsets:
     input:
-        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth.txt", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2"),
-        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}_mapped_truth_removed_exons.txt", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2"),
-        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth.txt", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out"),
-        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_mapped_truth_removed_exons.txt", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out"),
-        offset_dir = "simulation/mapped_truth"
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}{suffix}", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2", suffix = ["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"]),
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}{suffix}", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out", suffix = ["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"]),
+         offset_dir = "simulation/mapped_truth"
     params:
         outdir = "simulation/analysis/mapped_offset"
     output:
