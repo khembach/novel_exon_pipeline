@@ -16,6 +16,7 @@ import os
 
 rule compute_mapped_truth_hisat:
     input:
+        "Rout/R_packages_install_state.txt",
         bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{bam_name}_s.bam",
         gtf = config["gtf"],
         sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
@@ -32,6 +33,7 @@ rule compute_mapped_truth_hisat:
 
 rule compute_mapped_truth_star:
     input:
+        "Rout/R_packages_install_state.txt",
         bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam",
         gtf = config["gtf"],
         sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
@@ -48,7 +50,7 @@ rule compute_mapped_truth_star:
 
 rule plot_mapping_offsets:
     input:
-        "Rout/gitinstall_state.txt",
+        "Rout/R_packages_install_state.txt",
         expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}{suffix}", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2", suffix = ["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"]),
         expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}{suffix}", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out", suffix = ["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"]),
          offset_dir = "simulation/mapped_truth"

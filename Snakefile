@@ -93,6 +93,21 @@ rule all:
 
 
 
+## Install the required R packages into the environment     
+rule R_env_install:
+    input:
+        script = "scripts/install_R_packages.R"
+    output:
+        "Rout/R_packages_install_state.txt"
+    log:
+        "Rout/install_R_packages.Rout"
+    conda:
+        "envs/r_scripts.yaml"
+    shell:
+        '''R CMD BATCH --no-restore --no-save "--args outtxt='{output}' " {input.script} {log}'''
+
+
+
 ##################
 
 # RSEM
