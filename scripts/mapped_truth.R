@@ -156,7 +156,7 @@ write_offset_tables <- function(bam, gtf_file, sim_isoforms_results, removed_gtf
               quote=FALSE, sep="\t", row.names=FALSE)
   ## reads from removed exons
   offset_r <- compute_read_offset(read1_r_genome_range, read2_r_genome_range, aln_r)
-  offset_tab_r <- data.frame(offset_r = seq(0,101), 
+  offset_tab_r <- data.frame(offset = seq(0,101), 
                           count = binCounts(offset, bx=c(seq(0,101), max(offset))))
   write.table(offset_tab_r, 
               file=paste0(outprefix, "offset_counts_removed_exons.txt"), 
