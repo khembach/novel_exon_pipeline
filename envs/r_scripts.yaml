@@ -8,6 +8,6 @@ dependencies:
    - bioconductor-Rsamtools
    - r-stringr
    - r-dplyr
-   - r-ggplot2
+   - r-ggplot2=3.0.0
    - r-tidyr
    - r-data.table

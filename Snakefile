@@ -90,8 +90,6 @@ rule all:
         # expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
         # which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
         # expand("simulation/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
-        "simulation/analysis/mapped_offset/all_reads_read_offset_table.txt",
-        "simulation/analysis/mapped_offset/reads_removed_exons_read_offset_table.txt"
 
 
 
@@ -226,5 +224,5 @@ rule run_fastqc:
 
 rule mapping_offset_comparison:
     input:
-        "simulation/analysis/mapped_offset/all_reads_read_offset_table.txt",
-        "simulation/analysis/mapped_offset/reads_removed_exons_read_offset_table.txt"
+        expand("simulation/analysis/mapped_offset/{prefix}{suffix}", prefix = ["all_reads", "reads_removed_exons"], suffix = ["_read_offset_table.txt", "_offset_without_sc.txt"])
+

@@ -48,6 +48,7 @@ read_offsets <- function(file){
 #'
 #' @param offset_files vector with paths to the offset tables
 #' @param outdir path to the output directory in which the plots will be saved
+#' @param prefix prefix of the ouput files
 #'
 #' @return
 #' @export
@@ -70,7 +71,7 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
     theme_bw() +
     scale_y_log10() +
     theme(legend.position="bottom")
-  ggsave(file.path(OUTDIR, paste0(prefix, "_mapped_offset_comparison.png")), p, width=7, height = 6)
+  ggsave(file.path(OUTDIR, paste0(prefix, "_mapped_offset_comparison.pdf")), p, width=7, height = 6)
   
   ## compute the sum of wrong reads (offset >=101), the shifted reads (offset between
   ## 1 and 100) and the correct reads (offset == 0)
@@ -94,19 +95,96 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
   ###########
   ## Barplot
   p <- ggplot(dat_sums, aes(x = read_mapping, y = count, fill = parameter)) +
-    geom_col(position = "dodge") +
+    geom_col(position = position_dodge2(width = 0.9, preserve = "single", padding=0.05)) +
     facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
     scale_y_log10() + 
     theme_bw() +
     theme(legend.position="bottom")
-  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_count_barplot.png")), p, width = 7, height = 7)
+  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_count_barplot.pdf")), p, width = 7, height = 7)
   
   p <- ggplot(dat_sums, aes(x = read_mapping, y = percentage, fill = parameter)) +
-    geom_col(position = "dodge") +
+    geom_col(position = position_dodge2(width = 0.9, preserve = "single", padding=0.05)) +
     facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
     theme_bw() +
     theme(legend.position="bottom")
-  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_perc_barplot.png")), p, width = 7, height = 7)
+  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_perc_barplot.pdf")), p, width = 7, height = 7)
+  
+}
+
+
+
+#' Plots of offset corrected by soft clipped bases
+#' 
+#' Create plots to show the relationship between the offset and the number of soft
+#' clipped bases per read.
+#'
+#' @param offset_files vector with paths to the offset_soft_clipped tables
+#' @param outdir path to the output directory in which the plots will be saved
+#' @param prefix prefix of the ouput files
+#'
+#' @return
+#' @export
+#'
+#' @examples
+plot_offset_sc <- function(offset_files, outdir, prefix) {
+  ###############
+  ## Read the offset files
+  offset_tabs <- lapply(offset_files, read_offsets)
+  dat <- do.call("rbind", offset_tabs)
+  dat$mapper <- as.factor(dat$mapper)
+  dat$removed_annotation <- as.factor(dat$removed_annotation)
+  dat$parameter <- as.factor(dat$parameter)
+
+  ###########
+  ## Plot the offset and the corresponding number of soft clipped bases
+  ## We only plot the reads with offset >0 and <=101
+  dat_part <- dat[dat$parameter=="default" & dat$offset<=101 & dat$offset>0, ]
+  
+  ## binhex plot
+  p <- ggplot(dat_part, aes(x=offset, y=soft_clipped)) +
+    geom_hex(bins=50) + 
+    facet_grid(rows = vars(removed_annotation), cols = vars(mapper), scales="fixed") +
+    theme_bw() +
+    theme(legend.position="bottom") +
+    labs(y = "number of soft clipped bases", title="All reads with 0 < offset <= 101; default parameters")
+  ggsave(file.path(OUTDIR, paste0(prefix, "_offset_soft_clipped_default.pdf")), p, width=5, height = 6)
+
+  dat_part <- dat[dat$mapper!="hisat2" & dat$offset<=101 & dat$offset>0, ]
+  p <- ggplot(dat_part, aes(x=offset, y=soft_clipped)) +
+    geom_hex(bins=50) + 
+    facet_grid(rows = vars(removed_annotation), cols = vars(parameter), scales="fixed") +
+    theme_bw() +
+    theme(legend.position="bottom") +
+    labs(y = "number of soft clipped bases", title="All reads with 0 < offset <= 101")
+  ggsave(file.path(OUTDIR, paste0(prefix, "_offset_soft_clipped_star_params.pdf")), p, width=10, height = 6)
+  
+  ## most offsets are 0 if we subtract the # of soft clipped nts
+  # dat_part <- dat[dat$offset<=101 & dat$offset>0, ]
+  # p <- ggplot(dat_part, aes( y = abs(offset - soft_clipped), fill = parameter)) +
+  #   geom_boxplot() +
+  #   facet_grid(rows = vars(removed_annotation), cols = vars(mapper), space = "free_x") +
+  #   theme_bw() +
+  #   theme(legend.position="bottom") +
+  #   theme(axis.text.x=element_blank(),
+  #         axis.ticks.x=element_blank())
+    
+
+  ## We subtract the soft clipped bases from the offset, sum the result and divide
+  ## by the number of reads
+  sum_corrected_offset <- dat %>%
+    dplyr::group_by(mapper, parameter, removed_annotation) %>%
+    dplyr::summarize(offset_no_sc = sum(as.numeric(abs(offset - soft_clipped)))/n())
+  
+  write.table(sum_corrected_offset, file.path(OUTDIR,  paste0(prefix, "_offset_without_sc.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
+  
+  p <- ggplot(sum_corrected_offset, aes(x=mapper, y=offset_no_sc, fill = parameter)) +
+    geom_col(position = position_dodge2(width = 0.9, preserve = "single", padding=0.05)) +
+    facet_grid(rows = vars(removed_annotation), scales = "free_x") +
+    theme_bw() +
+    theme(legend.position="bottom") +
+    scale_y_log10() +
+    labs(y = "sum(offset - soft clipped) / N_reads")
+  ggsave(file.path(OUTDIR, paste0(prefix, "_offset_without_sc_barplot.pdf")), p, width=7, height = 6)
   
 }
 
@@ -125,8 +203,18 @@ library(tidyr)
 
 #############
 ## Plotting
-offset_files <- list.files(OFFSET_DIR, pattern = "mapped_truth.txt", recursive = TRUE)
+print("all reads")
+offset_files <- list.files(OFFSET_DIR, pattern = "offset_counts.txt", recursive = TRUE)
 plot_offset_distribution(offset_files, OUTDIR, prefix = "all_reads")
+print("all reads, sc correction")
+offset_files <-  list.files(OFFSET_DIR, pattern = "offset_soft_clipped.txt", recursive = TRUE)
+plot_offset_sc(offset_files, OUTDIR, prefix = "all_reads")
 
-offset_files <- list.files(OFFSET_DIR, pattern = "mapped_truth_removed_exons.txt", recursive = TRUE)
+print("removed exons reads")
+offset_files <- list.files(OFFSET_DIR, pattern = "offset_counts_removed_exons.txt", recursive = TRUE)
 plot_offset_distribution(offset_files, OUTDIR, prefix = "reads_removed_exons")
+print("removed exons reads, sc correction")
+offset_files <-  list.files(OFFSET_DIR, pattern = "offset_soft_clipped_removed_exons.txt", recursive = TRUE)
+plot_offset_sc(offset_files, OUTDIR, prefix = "reads_removed_exons")
+
+

@@ -48,13 +48,15 @@ rule compute_mapped_truth_star:
 
 rule plot_mapping_offsets:
     input:
+        "Rout/gitinstall_state.txt",
         expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}{suffix}", mapper = "hisat2", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2", suffix = ["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"]),
         expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}{suffix}", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"], bam_name = "pass2_Aligned.out", suffix = ["_offset_counts.txt", "_offset_counts_removed_exons.txt", "_offset_soft_clipped.txt", "_offset_soft_clipped_removed_exons.txt"]),
          offset_dir = "simulation/mapped_truth"
     params:
         outdir = "simulation/analysis/mapped_offset"
+    conda:
+        "../envs/r_scripts.yaml"
     output:
-        "simulation/analysis/mapped_offset/all_reads_read_offset_table.txt",
-        "simulation/analysis/mapped_offset/reads_removed_exons_read_offset_table.txt"
+        expand("simulation/analysis/mapped_offset/{prefix}{suffix}", prefix = ["all_reads", "reads_removed_exons"], suffix = ["_read_offset_table.txt", "_offset_without_sc.txt"])
     script:
         "../scripts/plot_mapping_offset.R"
