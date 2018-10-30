@@ -71,7 +71,7 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
     theme_bw() +
     scale_y_log10() +
     theme(legend.position="bottom")
-  ggsave(file.path(OUTDIR, paste0(prefix, "_mapped_offset_comparison.pdf")), p, width=7, height = 6)
+  ggsave(file.path(outdir, paste0(prefix, "_mapped_offset_comparison.pdf")), p, width=7, height = 6)
   
   ## compute the sum of wrong reads (offset >=101), the shifted reads (offset between
   ## 1 and 100) and the correct reads (offset == 0)
@@ -90,7 +90,7 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
                   percentage = count/total)
   
   ## write the count table to file
-  write.table(dat_sums, file.path(OUTDIR,  paste0(prefix, "_read_offset_table.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
+  write.table(dat_sums, file.path(outdir,  paste0(prefix, "_read_offset_table.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
   
   ###########
   ## Barplot
@@ -100,14 +100,14 @@ plot_offset_distribution <- function(offset_files, outdir, prefix) {
     scale_y_log10() + 
     theme_bw() +
     theme(legend.position="bottom")
-  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_count_barplot.pdf")), p, width = 7, height = 7)
+  ggsave(file.path(outdir,  paste0(prefix, "_mapped_offset_count_barplot.pdf")), p, width = 7, height = 7)
   
   p <- ggplot(dat_sums, aes(x = read_mapping, y = percentage, fill = parameter)) +
     geom_col(position = position_dodge2(width = 0.9, preserve = "single", padding=0.05)) +
     facet_grid(rows = vars(removed_annotation), cols = vars(mapper)) +
     theme_bw() +
     theme(legend.position="bottom")
-  ggsave(file.path(OUTDIR,  paste0(prefix, "_mapped_offset_perc_barplot.pdf")), p, width = 7, height = 7)
+  ggsave(file.path(outdir,  paste0(prefix, "_mapped_offset_perc_barplot.pdf")), p, width = 7, height = 7)
   
 }
 
@@ -147,7 +147,7 @@ plot_offset_sc <- function(offset_files, outdir, prefix) {
     theme_bw() +
     theme(legend.position="bottom") +
     labs(y = "number of soft clipped bases", title="All reads with 0 < offset <= 101; default parameters")
-  ggsave(file.path(OUTDIR, paste0(prefix, "_offset_soft_clipped_default.pdf")), p, width=5, height = 6)
+  ggsave(file.path(outdir, paste0(prefix, "_offset_soft_clipped_default.pdf")), p, width=5, height = 6)
 
   dat_part <- dat[dat$mapper!="hisat2" & dat$offset<=101 & dat$offset>0, ]
   p <- ggplot(dat_part, aes(x=offset, y=soft_clipped)) +
@@ -156,7 +156,7 @@ plot_offset_sc <- function(offset_files, outdir, prefix) {
     theme_bw() +
     theme(legend.position="bottom") +
     labs(y = "number of soft clipped bases", title="All reads with 0 < offset <= 101")
-  ggsave(file.path(OUTDIR, paste0(prefix, "_offset_soft_clipped_star_params.pdf")), p, width=10, height = 6)
+  ggsave(file.path(outdir, paste0(prefix, "_offset_soft_clipped_star_params.pdf")), p, width=10, height = 6)
   
   ## most offsets are 0 if we subtract the # of soft clipped nts
   # dat_part <- dat[dat$offset<=101 & dat$offset>0, ]
@@ -175,7 +175,7 @@ plot_offset_sc <- function(offset_files, outdir, prefix) {
     dplyr::group_by(mapper, parameter, removed_annotation) %>%
     dplyr::summarize(offset_no_sc = sum(as.numeric(abs(offset - soft_clipped)))/n())
   
-  write.table(sum_corrected_offset, file.path(OUTDIR,  paste0(prefix, "_offset_without_sc.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
+  write.table(sum_corrected_offset, file.path(outdir,  paste0(prefix, "_offset_without_sc.txt")), quote = FALSE, sep = "\t", row.names = FALSE)
   
   p <- ggplot(sum_corrected_offset, aes(x=mapper, y=offset_no_sc, fill = parameter)) +
     geom_col(position = position_dodge2(width = 0.9, preserve = "single", padding=0.05)) +
@@ -184,7 +184,7 @@ plot_offset_sc <- function(offset_files, outdir, prefix) {
     theme(legend.position="bottom") +
     scale_y_log10() +
     labs(y = "sum(offset - soft clipped) / N_reads")
-  ggsave(file.path(OUTDIR, paste0(prefix, "_offset_without_sc_barplot.pdf")), p, width=7, height = 6)
+  ggsave(file.path(outdir, paste0(prefix, "_offset_without_sc_barplot.pdf")), p, width=7, height = 6)
   
 }
 
