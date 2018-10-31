@@ -62,3 +62,33 @@ rule plot_mapping_offsets:
         expand("simulation/analysis/mapped_offset/{prefix}{suffix}", prefix = ["all_reads", "reads_removed_exons"], suffix = ["_read_offset_table.txt", "_offset_without_sc.txt"])
     script:
         "../scripts/plot_mapping_offset.R"
+
+###############
+## Quality scores at different positions relative to start of soft-clipped regions
+rule plot_quality_scores_star:
+    input:
+        "Rout/R_packages_install_state.txt",
+        bam ="simulation/mapping/{mapper}/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
+    params:
+        outprefix = "simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}",
+        title = "{mapper}: {which_reduced_gtf}; {test_dirnames}"
+    output:
+        "simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}_quality_scores_per_position.pdf"
+    conda:
+        "../envs/r_scripts.yaml"
+    script:
+        "../scripts/sc_quality.R"
+
+rule plot_quality_scores_hisat:
+    input:
+        "Rout/R_packages_install_state.txt",
+        bam ="simulation/mapping/{mapper}/{which_reduced_gtf}/hisat2_s.bam"
+    params:
+        outprefix = "simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}",
+        title = "{mapper}: {which_reduced_gtf}"
+    output:
+        "simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf"
+    conda:
+        "../envs/r_scripts.yaml"
+    script:
+        "../scripts/sc_quality.R"
