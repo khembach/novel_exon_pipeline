@@ -40,6 +40,7 @@ include: "rules/mapping_comparison.smk"
 include: "rules/mapping.smk"
 include: "rules/predict_novel_splicing_events.smk"
 include: "rules/quantification.smk"
+include: "rules/mapping_real_data.smk"
 
 
 
@@ -245,4 +246,18 @@ rule quality_scores:
     input:
         expand("simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}_quality_scores_per_position.pdf", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"]),
         expand("simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf", mapper="hisat2", which_reduced_gtf = config["reduced_gtf"])
+
+
+
+#################
+
+# Real data
+
+################
+
+rule map_real_data:
+    input:
+        expand("SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"],
+        test_dirnames = "default", bam_name = "pass2_Aligned.out"),
+        expand("SRR3192428/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
 
