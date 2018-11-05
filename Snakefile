@@ -247,10 +247,7 @@ rule quality_scores:
         expand("simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}_quality_scores_per_position.pdf", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"]),
         expand("simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf", mapper="hisat2", which_reduced_gtf = config["reduced_gtf"]),
         expand("SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf", mapper = "hisat2", which_reduced_gtf=config["reduced_gtf"]),
-        expand("SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"])
-
-
-
+        expand("SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}_quality_scores_per_position.pdf", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = "default")
 
 #################
 

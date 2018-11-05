@@ -92,3 +92,35 @@ rule plot_quality_scores_hisat:
         "../envs/r_scripts.yaml"
     script:
         "../scripts/sc_quality.R"
+
+
+rule plot_quality_scores_star_real_data:
+    input:
+        "Rout/R_packages_install_state.txt",
+        bam ="SRR3192428/mapping/{mapper}/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_chr19_22_s.bam"
+    params:
+        outprefix = "SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}",
+        title = "{mapper}: {which_reduced_gtf}; {test_dirnames}"
+    output:
+        "SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}_quality_scores_per_position.pdf"
+    conda:
+        "../envs/r_scripts.yaml"
+    script:
+        "../scripts/sc_quality.R"
+
+rule plot_quality_scores_hisat_real_data:
+    input:
+        "Rout/R_packages_install_state.txt",
+        bam ="SRR3192428/mapping/{mapper}/{which_reduced_gtf}/hisat2_s.bam"
+    params:
+        outprefix = "SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}",
+        title = "{mapper}: {which_reduced_gtf}"
+    output:
+        "SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf"
+    conda:
+        "../envs/r_scripts.yaml"
+    script:
+        "../scripts/sc_quality.R"
+
+
+
