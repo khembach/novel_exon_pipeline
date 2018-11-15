@@ -122,5 +122,42 @@ rule plot_quality_scores_hisat_real_data:
     script:
         "../scripts/sc_quality.R"
 
+## -----------------------------------------------
+
+rule mapped_truth_sj_hisat:
+    input:
+        "Rout/R_packages_install_state.txt",
+        bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{bam_name}_s.bam",
+        gtf = config["gtf"],
+        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
+        removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.which_reduced_gtf]
+    params:
+        outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}"
+        # ensembl_db_sqlite = "annotation/Homo_sapiens.GRCh37.85_chr19_22.sqlite"
+    conda:
+        "../envs/R_3.5.1.yaml"
+    output:
+        expand("simulation/mapped_truth/{{mapper}}/{{which_reduced_gtf}}/{{bam_name}}{suffix}", suffix=["_evaluation_SJ_all.txt", "_evaluation_SJ_overl_removed_exons.txt"])
+    script:
+        "../scripts/mapped_truth_with_sj.R"
+
+
+rule compute_mapped_truth_sj_star:
+    input:
+        "Rout/R_packages_install_state.txt",
+        bam = "simulation/mapping/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}_s.bam",
+        gtf = config["gtf"],
+        sim_iso_res = "simulation/simulated_data/simulated_reads_chr19_22.sim.isoforms.results",
+        removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.which_reduced_gtf]
+    params:
+        outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}"
+        # ensembl_db_sqlite = "annotation/Homo_sapiens.GRCh37.85_chr19_22.sqlite"
+    conda:
+        "../envs/R_3.5.1.yaml"
+    output: 
+        expand("simulation/mapped_truth/{{mapper}}/{{which_reduced_gtf}}/{{test_dirnames}}/{{bam_name}}{suffix}", suffix=["_evaluation_SJ_all.txt", "_evaluation_SJ_overl_removed_exons.txt"])
+    script:
+        "../scripts/mapped_truth_with_sj.R"
+
 
 

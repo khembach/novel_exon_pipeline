@@ -103,7 +103,8 @@ rule R_env_install:
     log:
         "Rout/install_R_packages.Rout"
     conda:
-        "envs/r_scripts.yaml"
+        # "envs/r_scripts.yaml"
+        "envs/R_3.5.1.yaml"
     shell:
         '''R CMD BATCH --no-restore --no-save "--args outtxt='{output}' " {input.script} {log}'''
 
@@ -248,6 +249,12 @@ rule quality_scores:
         expand("simulation/analysis/mapped_offset/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf", mapper="hisat2", which_reduced_gtf = config["reduced_gtf"]),
         expand("SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_quality_scores_per_position.pdf", mapper = "hisat2", which_reduced_gtf=config["reduced_gtf"]),
         expand("SRR3192428/analysis/sc_quality_score/{mapper}/{which_reduced_gtf}_{test_dirnames}_quality_scores_per_position.pdf", mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = "default")
+
+rule mapped_truth_sj:
+    input:
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/hisat2{suffix}", mapper="hisat2", which_reduced_gtf = config["reduced_gtf"], suffix=["_evaluation_SJ_all.txt", "_evaluation_SJ_overl_removed_exons.txt"]),
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out{suffix}",  mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"],  suffix=["_evaluation_SJ_all.txt", "_evaluation_SJ_overl_removed_exons.txt"])
+
 
 #################
 
