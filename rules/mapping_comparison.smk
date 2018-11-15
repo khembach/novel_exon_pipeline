@@ -133,7 +133,6 @@ rule mapped_truth_sj_hisat:
         removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.which_reduced_gtf]
     params:
         outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{bam_name}"
-        # ensembl_db_sqlite = "annotation/Homo_sapiens.GRCh37.85_chr19_22.sqlite"
     conda:
         "../envs/R_3.5.1.yaml"
     output:
@@ -151,7 +150,6 @@ rule compute_mapped_truth_sj_star:
         removed_gtf = lambda wildcards: config["reduced_exons"][wildcards.which_reduced_gtf]
     params:
         outprefix = "simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/{bam_name}"
-        # ensembl_db_sqlite = "annotation/Homo_sapiens.GRCh37.85_chr19_22.sqlite"
     conda:
         "../envs/R_3.5.1.yaml"
     output: 
