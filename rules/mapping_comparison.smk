@@ -158,4 +158,18 @@ rule compute_mapped_truth_sj_star:
         "../scripts/mapped_truth_with_sj.R"
 
 
+rule plot_mapped_truth_sj:
+    input:
+        "Rout/R_packages_install_state.txt",
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/hisat2{suffix}", mapper="hisat2", which_reduced_gtf = config["reduced_gtf"], suffix=["_evaluation_SJ_all.txt", "_evaluation_SJ_overl_removed_exons.txt"]),
+        expand("simulation/mapped_truth/{mapper}/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out{suffix}",  mapper = "STAR", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"],  suffix=["_evaluation_SJ_all.txt", "_evaluation_SJ_overl_removed_exons.txt"]),
+        indir = "simulation/mapped_truth"
+    output:
+        expand("simulation/analysis/mapped_sj_eval/{prefix}{suffix}", prefix = ["all_reads", "reads_removed_exons"], suffix = ["_evaluation_SJ_barplot.pdf", "_evaluation_SJ_barplot_percent.pdf", "_BAM_unique_mapped_barplot.pdf", "_evaluation_SJ_barplot_accuracy.pdf", "_evaluation_SJ_barplot_ROC.pdf"])
+    params:
+        outdir = "simulation/analysis/mapped_sj_eval"
+    conda:
+        "../envs/r_scripts.yaml"
+    script:
+        "../scripts/plot_mapped_truth_sj.R"
 
