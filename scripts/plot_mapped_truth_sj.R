@@ -67,16 +67,21 @@ eval_sj <- function(in_files, in_path, out_dir, prefix) {
 
   p <- ggplot(dat, aes(x = measure, y = count, 
                        fill = parameter, color = mapper)) +
-    geom_col(position = position_dodge2( preserve = "total", padding=0.1)) + 
+    geom_col(position = position_dodge2( preserve = "total", padding=0.1), size=0.8) + 
     facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
     theme_bw() +
     theme(legend.position="bottom") +
     scale_y_log10() +
     guides(fill = guide_legend(nrow=2,byrow=TRUE), color = guide_legend(nrow=1)) +
-    theme(legend.box = "vertical") 
+    theme(legend.box = "vertical") +
+    scale_color_manual(values=c("gold", "grey"))+
+    theme(strip.text = element_text(size = 12), 
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14))
+    
   
   ggsave(file.path(out_dir,  paste0(prefix, "_evaluation_SJ_barplot.pdf")), 
-         p, width = 7, height = 7)
+         p, width = 7.5, height = 7)
   
   ## compute percentage
   dat <- dat %>%
@@ -87,15 +92,20 @@ eval_sj <- function(in_files, in_path, out_dir, prefix) {
 
   p <- ggplot(dat, aes(x = measure, y = percentage, 
                        fill = parameter, color = mapper)) +
-    geom_col(position = position_dodge2( preserve = "total", padding=0.1)) +
+    geom_col(position = position_dodge2( preserve = "total", padding=0.1), size=0.8) +
     facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
     theme_bw() +
     theme(legend.position="bottom") +
     guides(fill = guide_legend(nrow=2,byrow=TRUE), color = guide_legend(nrow=1)) +
-    theme(legend.box = "vertical") 
+    theme(legend.box = "vertical") +
+    scale_color_manual(values=c("gold", "grey"))+
+    theme(strip.text = element_text(size = 12), 
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14)) +
+    scale_y_sqrt()
   ggsave(file.path(out_dir, 
                    paste0(prefix, "_evaluation_SJ_barplot_percent.pdf")), 
-         p, width = 7, height = 7) 
+         p, width = 7.5, height = 7) 
    
   ## plot the number of mapped reads per BAM file
   p <- ggplot(dat[dat$measure == "TP" & dat$read == "first",], 
@@ -105,13 +115,16 @@ eval_sj <- function(in_files, in_path, out_dir, prefix) {
     theme_bw() +
     theme(legend.position="bottom") +
     geom_text(aes(label = total, y = total/10, vjust = 0.5, hjust = 0), 
-              position = position_dodge(0.9), angle = 80)
+              position = position_dodge(0.9), angle = 80) +
+    theme(strip.text = element_text(size = 12), 
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14))
   
   ggsave(file.path(out_dir, paste0(prefix, "_BAM_unique_mapped_barplot.pdf")), 
          p, width = 7, height = 7) 
   
   #############
-  ## Accurracy
+  ## Accurracy: (TP + TN) / (TP + TN + FP + FN)
   dat <- dat %>%
     dplyr::group_by(removed_annotation, parameter, mapper, read) %>%
     dplyr::mutate(accuracy = (count[measure=="TP"] + count[measure=="TN"])/
@@ -125,34 +138,95 @@ eval_sj <- function(in_files, in_path, out_dir, prefix) {
     facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
     theme_bw() +
     theme(legend.position="bottom") +
-    geom_text(aes(label = round(accuracy, digits = 4), y = 0.1, 
+    geom_text(aes(label = round(accuracy, digits = 3), y = 0.1, 
                   vjust = 0.5, hjust = 0), 
-              position = position_dodge(0.9), angle = 85)
+              position = position_dodge(0.9), angle = 90) +
+    theme(strip.text = element_text(size = 12), 
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14))
   
   ggsave(file.path(out_dir, paste0(prefix, 
                                    "_evaluation_SJ_barplot_accuracy.pdf")), 
          p, width = 7, height = 7) 
   
   ############
-  ## ROC plot
+  ## ROC plot: FPR  vs TPR (sensitivity)
   dat <- dat %>% 
     dplyr::group_by(removed_annotation, parameter, mapper, read) %>%
-    dplyr::mutate(FPR = count[measure=="TP"]/(count[measure=="TP"] + 
+    dplyr::mutate(FPR = count[measure=="FP"]/(count[measure=="TN"] + 
                                               count[measure=="FP"]),
                   TPR = count[measure=="TP"]/(count[measure=="TP"] + 
                                               count[measure=="FN"]))
   
+
+  max_axis <- round(max(max(dat$FPR), 1-min(dat$TPR)), digits = 2) + 0.01
   p <- ggplot(dat[dat$measure == "TP",], aes(x = FPR, y = TPR, 
                                              color = parameter)) +
-    geom_point(aes(shape = mapper)) + 
+    geom_point(aes(shape = mapper), size = 3) + 
     facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
     theme_bw() +
-    scale_x_continuous(limits = c(0.95, 1)) +
-    scale_y_continuous(limits = c(0.95, 1)) +
-    coord_equal(ratio=1)
-    
-  ggsave(file.path(out_dir, paste0(prefix, "_evaluation_SJ_barplot_ROC.pdf")), 
+    scale_x_continuous(limits = c(0, max_axis)) +
+    scale_y_continuous(limits = c(1-max_axis, 1)) +
+    coord_equal(ratio=1) +
+    theme(strip.text = element_text(size = 12), 
+          axis.text.y = element_text(size = 12),
+          axis.title = element_text(size = 14),
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 12))
+  
+  ggsave(file.path(out_dir, paste0(prefix, "_evaluation_SJ_ROC.pdf")), 
          p, width = 7, height = 6) 
+  
+  
+  ############
+  ## Precision-Recall plot: Recall (TPR) vs Precision
+  dat <- dat %>% 
+    dplyr::group_by(removed_annotation, parameter, mapper, read) %>%
+    dplyr::mutate(Precision = count[measure=="TP"]/(count[measure=="TP"] + 
+                                                count[measure=="FP"]))
+  
+    p <- ggplot(dat[dat$measure == "TP",], aes(x = TPR, y = Precision, 
+                                               color = parameter)) +
+      geom_point(aes(shape = mapper), size = 3) + 
+      facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
+      theme_bw() +
+      scale_x_continuous(limits = c(0.95, 1)) +
+      scale_y_continuous(limits = c(0.95, 1)) +
+      coord_equal(ratio=1) +
+      labs(x = "Recall") +
+      theme(strip.text = element_text(size = 12), 
+            axis.text.y = element_text(size = 12),
+            axis.title = element_text(size = 14),
+            axis.text.x = element_text(angle = 45, hjust = 1, size = 12))
+    
+
+    ggsave(file.path(out_dir, paste0(prefix, "_evaluation_SJ_PR.pdf")), 
+           p, width = 7, height = 6) 
+
+  #############
+  ## F1 score: 2*(Precision*Recall)/(Precision+Recall)
+  dat <- dat %>%
+    dplyr::group_by(removed_annotation, parameter, mapper, read) %>%
+    dplyr::mutate(F1 = 2 * (Precision * TPR) / (Precision + TPR))
+    
+    p <- ggplot(dat[dat$measure == "TP",], aes(x = mapper, y = F1, 
+                                               fill = parameter )) + 
+      geom_col(position = position_dodge2( preserve = "total", padding=0.1)) +
+      facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
+      theme_bw() +
+      theme(legend.position="bottom") +
+      # geom_text(aes(label = round(F1, digits = 3), y = 0., 
+      #               vjust = 0.5, hjust = 0), 
+      #           position = position_dodge(0.9), angle = 90) +
+      labs(y = "F1 score") +
+      theme(strip.text = element_text(size = 12), 
+            axis.text = element_text(size = 12),
+            axis.title = element_text(size = 14)) +
+      coord_cartesian(ylim=c(0.96, 1))
+    
+    ggsave(file.path(out_dir, paste0(prefix, 
+                                     "_evaluation_SJ_barplot_F1.pdf")), 
+           p, width = 7, height = 7) 
+    
 }
 
 

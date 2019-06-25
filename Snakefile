@@ -261,7 +261,7 @@ rule mapped_truth_sj:
 
 rule mapped_truth_sj_comparison:
     input:
-        expand("simulation/analysis/mapped_sj_eval/{prefix}{suffix}", prefix = ["all_reads", "reads_removed_exons"], suffix = ["_evaluation_SJ_barplot.pdf", "_evaluation_SJ_barplot_percent.pdf", "_BAM_unique_mapped_barplot.pdf", "_evaluation_SJ_barplot_accuracy.pdf", "_evaluation_SJ_barplot_ROC.pdf"])
+        expand("simulation/analysis/mapped_sj_eval/{prefix}{suffix}", prefix = ["all_reads", "reads_removed_exons"], suffix = ["_evaluation_SJ_barplot.pdf", "_evaluation_SJ_barplot_percent.pdf", "_BAM_unique_mapped_barplot.pdf", "_evaluation_SJ_barplot_accuracy.pdf", "_evaluation_SJ_ROC.pdf", "_evaluation_SJ_PR.pdf", "_evaluation_SJ_barplot_F1.pdf"])
 
 #################
 
