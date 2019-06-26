@@ -34,6 +34,9 @@ SEED = 584
 STAR_PARAMS_DIRNAME = ["default", "default_2_pass", "outSJfilterOverhangMin9", "outSJfilterOverhangMin6", "outSJfilterCountTotalMin3",
  "scoreGenomicLengthLog2scale0", "alignSJoverhangMin3"]
 
+## Define the R binary
+Rbin = config["Rbin"]
+
 ### sub sections of the workflow:
 include: "rules/rsem_simulation.smk"
 include: "rules/mapping_comparison.smk"
@@ -273,3 +276,14 @@ rule map_real_data:
     input:
         expand("SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_chr19_22_s.bam.bai", which_reduced_gtf = config["reduced_gtf"], test_dirnames = "default", bam_name = "pass2_Aligned.out"),
         expand("SRR3192428/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
+
+
+################
+
+# Exon discovery 
+
+################
+
+rule run_exon_prediction:
+    input: 
+        expand("simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])

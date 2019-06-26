@@ -11,21 +11,24 @@
 
 ###################
 
-rule filter_novel_SJ:
+rule predict_novel_exons:
     input:
+        script = "R/predict_novel_exons.R",
         gtf = lambda wildcards: config["reduced_gtf"][wildcards.which_reduced_gtf],
         sj = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_SJ.out.tab",
         bam = "simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam"
     output:
-        # outfile = "simulation/analysis/filtered_SJ/novel_exons_reduced_{which_reduced_gtf}_{test_dirnames}.txt"
-        outfile = "simulation/analysis/filtered_SJ/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        "simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+    params:
+        overhang_min = lambda wildcards: config["overhang_min"][wildcards.test_dirnames]
     log:
-        "logs/filter_SJ/{which_reduced_gtf}_{test_dirnames}.log",
-    script:
-        "../scripts/filter_novel_SJ.R"
+        "logs/Rout/exon_prediction/{which_reduced_gtf}_{test_dirnames}.log"
+    shell:
+        '''{Rbin} CMD BATCH --no-restore --no-save "--args GTF='{input.gtf}' SJFILE='{input.sj}' BAM='{input.bam}' OVERHANGMIN='{params.overhang_min}' OUTFILE='{output}'" {input.script} {log}'''  
 
 
 ###################
+
 # add predicted exons to the GTF file
 
 ###################
