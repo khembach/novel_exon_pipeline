@@ -287,3 +287,8 @@ rule map_real_data:
 rule run_exon_prediction:
     input: 
         expand("simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+
+rule run_extend_gtf:
+    input: 
+        expand("simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+

@@ -35,14 +35,15 @@ rule predict_novel_exons:
 
 rule add_predicted_exon_to_gtf:
     input:
-        # me = config["reduced_gtf"]["me"],
+        script = "R/add_predictions_to_gtf.R",
         gtf = get_gtf,
-        exon_prediction = "simulation/analysis/filtered_SJ/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        exon_prediction = "simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     output:
-        outfile = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf"
-    script:
-        "../scripts/add_novel_exon_to_gtf.R"
-
+        outfile = "simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf"
+    log:
+        "logs/Rout/extend_gtf/{which_reduced_gtf}_{test_dirnames}.log"
+    shell:
+        '''{Rbin} CMD BATCH --no-restore --no-save "--args GTF='{input.gtf}' EXONPRED='{input.exon_prediction}' OUTFILE='{output}'" {input.script} {log}'''
 
 
 ###################
