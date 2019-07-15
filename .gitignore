@@ -16,3 +16,5 @@ test_reduce_gtf/
 pipeline/test_BAM_junctions/
 pipeline/*.html
 *.Rhist
+.Rproj.user
+SRR3192428/
