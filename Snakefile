@@ -20,11 +20,11 @@ STAR_PARAMS_DIRNAME = ["default", "default_2_pass", "outSJfilterOverhangMin9", "
 
 ### sub sections of the workflow:
 include: "rules/rsem_simulation.smk"
-# include: "rules/mapping_comparison.smk"
+include: "rules/mapping_comparison.smk"
 include: "rules/mapping.smk"
-# include: "rules/predict_novel_splicing_events.smk"
-# include: "rules/quantification.smk"
-# include: "rules/mapping_real_data.smk"
+include: "rules/predict_novel_splicing_events.smk"
+include: "rules/quantification.smk"
+include: "rules/mapping_real_data.smk"
 
 
 rule all:
