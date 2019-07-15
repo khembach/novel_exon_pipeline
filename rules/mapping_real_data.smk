@@ -17,28 +17,28 @@ rule make_GTF_real_fastq:
 
 rule generate_star_index_real_fastq:
     input:
-        # fasta = expand("{GENOMEDIR}{chr}.fa", GENOMEDIR=GENOMEDIR, chr = CHROMS),
         fasta = config["genome"],
         gtf = "SRR3192428/annotation/Homo_sapiens.GRCh37.85_reduced_{which_reduced_gtf}_chr19_22.gtf"
     output:
         "SRR3192428/reference/STAR/{which_reduced_gtf}/Genome",
         outdir = "SRR3192428/reference/STAR/{which_reduced_gtf}/"
-    threads: CORES
+    threads: 
+        config["cores"]
     shell:
         "STAR --runMode genomeGenerate --runThreadN {threads} --genomeDir {output.outdir} --genomeFastaFiles {input.fasta} "
         "--sjdbGTFfile {input.gtf} -sjdbOverhang 100"
 
+
 rule star_mapping_real_fastq:
     input:
-        fastq1 = FASTQ1,
-        fastq2 = FASTQ2,
+        fastq1 = config["FASTQ1"],
+        fastq2 = config["FASTQ2"],
         star_index = "SRR3192428/reference/STAR/{which_reduced_gtf}/"
     output:
         bam1 = temp("SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/Aligned.out.bam"),
         bam2 = temp("SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out.bam"),
         sj1 = "SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/SJ.out.tab",
         sj2 = "SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_SJ.out.tab"
-        # "{SIMDIR}mapping/{{sample}}.bam"
     params:
         outdir = "SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}",
         test_param = get_star_param
@@ -76,14 +76,14 @@ rule extract_chr19_22_bam:
 rule hisat2_mapping_real_fastq:
     input:
        "reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22.1.ht2",
-        fastq1 = FASTQ1,
-        fastq2 = FASTQ2
+        fastq1 = config["FASTQ1"],
+        fastq2 = config["FASTQ2"]
     output:
         sam = temp("SRR3192428/mapping/hisat2/{which_reduced_gtf}/hisat2.sam"),
         novel_splicesites = "SRR3192428/mapping/hisat2/{which_reduced_gtf}/novel_splice_sites_hisat2.txt"
     params:
         basename = "reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22",
-        seed = SEED
+        seed = config["SEED"]
     threads:
         config["cores"]
     log:
@@ -92,6 +92,7 @@ rule hisat2_mapping_real_fastq:
         """
         hisat2 -x {params.basename} -1 {input.fastq1} -2 {input.fastq2} -S {output.sam} --novel-splicesite-outfile {output.novel_splicesites} --rna-strandness RF -k 1 --new-summary --no-unal -p {threads} --seed {params.seed} 2> {log}
         """
+
 
 rule convert_bam_real_fastq:
     input:

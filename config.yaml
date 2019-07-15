@@ -1,6 +1,46 @@
-cores: 20
+## All paths defined in this configuration file must be either absolute or relative to the 
+## location of the Snakefile!
 
+
+## human RNA-seq sample for simulation
+##--------------------------------------------------------------------------------------------
+
+## data was downloaded from ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603411/SRR3192428/
+## GEO https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2072377
+FASTQ1: "/home/Shared/data/seq/microexon_simulation/microexon_study/real_data/SRR3192428_1.fastq.gz"
+FASTQ2: "/home/Shared/data/seq/microexon_simulation/microexon_study/real_data/SRR3192428_2.fastq.gz"
+## directory in which the reference genome fasta sequences are stored:
+## Homo_sapiens.GRCh37.dna.chromosome.19.fa
+## Homo_sapiens.GRCh37.dna.chromosome.22.fa
+GENOMEDIR: "/home/Shared/data/seq/microexon_simulation/microexon_study/genome/reference/"
+## prefix of the RSEM reference files
+RSEMREF: "reference/RSEM/hg19_chr19_22"
+## name of the RNA-seq sample
+REALSAMPLE: "/home/Shared/data/seq/microexon_simulation/microexon_study/real_data/"
+## index of the RNA-seq sample
+SAMPLENAME: "SRR3192428"
+## theta paramter for rsem-simulate-reads
+## This parameter determines the fraction of reads  that  are  coming  from  background  "noise"  (instead  of  from  a transcript)
+THETA: 0.05
+## How many reads should be simulated?
+N_READS: 1118017
+## the number of reads that were mapped to chromosome 19 and 22: 1118017
+## 8306564 = number of reads = [348875684]/4*{1500+500}/(21000)        [lines in real fastq data] {genes in chr19 + chr22} / (total genes)
+
+## seed for ransom numbere generator in rsem-simulate-reads
+SEED: 584
+
+## Number of cores
+##--------------------------------------------------------------------------------------------
+## maximal number of cores to use
+cores: 12
+
+## Gene annotation file
+##--------------------------------------------------------------------------------------------
 gtf : "annotation/Homo_sapiens.GRCh37.85_chr19_22.gtf"
+
+## Mapping parameters
+##--------------------------------------------------------------------------------------------
 
 genome:
     "/home/Shared/data/seq/microexon_simulation/GRCh37.82/genome/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
@@ -44,8 +84,6 @@ overhang_min:
     outSJfilterCountTotalMin3: "12"
     scoreGenomicLengthLog2scale0: "12"
     alignSJoverhangMin3: "12"
-
-
 
 tophat_param:
     default: ""

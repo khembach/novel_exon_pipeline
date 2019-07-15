@@ -191,7 +191,7 @@ rule stringtie_transcriptome_fasta:
 rule gffcompare_stringtie:
     input:
         stringtie = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}_stringtie.gtf",
-        ref_gtf = GTF
+        ref_gtf = config["gtf"]
     output:
         outfile = "simulation/analysis/stringtie/gffcompare/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/stringtie.annotated.gtf",
         refmap = "simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/stringtie.{test_dirnames}_stringtie.gtf.refmap",
@@ -202,7 +202,7 @@ rule gffcompare_stringtie:
 rule gffcompare_prediction:
     input:
         prediction = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
-        ref_gtf = GTF
+        ref_gtf = config["gtf"]
     output:
         outfile = "simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
         refmap = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/prediction.GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf.refmap"
