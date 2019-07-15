@@ -15,6 +15,10 @@ def get_gtf(wildcards):
     return config["reduced_gtf"][wildcards.which_reduced_gtf]  ## e.g. outSJfilterOverhangMin
 
 
+### TODO: if "reduced_gtf" if "original", return the path to the original GTF file
+
+
+
 ####################
 
 # Preprocessing
@@ -40,12 +44,13 @@ rule hisat2_extract_splice_sites:
 rule generate_star_index:
     input:
         # fasta = expand("{GENOMEDIR}{chr}.fa", GENOMEDIR=GENOMEDIR, chr = CHROMS),
-        fasta = expand("{GENOMEDIR}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", GENOMEDIR=GENOMEDIR, chr = config["chromosomes"]),
+        fasta = expand("{genomedir}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", genomedir = config["GENOMEDIR"], chr = config["chromosomes"]),
         gtf = get_gtf
     output:
         "reference/STAR/chr19_22/{which_reduced_gtf}/Genome",
         outdir = "reference/STAR/chr19_22/{which_reduced_gtf}/"
-    threads: CORES
+    threads: 
+        config["cores"]
     shell:
         "STAR --runMode genomeGenerate --runThreadN {threads} --genomeDir {output.outdir} --genomeFastaFiles {input.fasta} "
         "--sjdbGTFfile {input.gtf} -sjdbOverhang 100"
@@ -53,21 +58,23 @@ rule generate_star_index:
 ### use Hisat2 because tophat2 is on low maintenance???
 rule generate_bowtie2_index:
     input:
-        fasta = expand("{GENOMEDIR}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", GENOMEDIR=GENOMEDIR, chr = config["chromosomes"])
+        fasta = expand("{genomedir}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", genomedir = config["GENOMEDIR"], chr = config["chromosomes"])
         # ",".join("{GENOMEDIR}*.fa")  ## how to join the fasta files with ,?
     output:
         "reference/bowtie2/chr19_22/"
     params:
-        prefix = "reference/bowtie2/chr19_22/GRCh37.85_chr19_22"
-    threads: CORES
+        prefix = "reference/bowtie2/chr19_22/GRCh37.85_chr19_22",
+        seed = config["SEED"]
+    threads: 
+        config["cores"]
     run:
         fasta_list = ",".join(input.fasta)
-        shell("bowtie2-build --seed {SEED} -f {fasta_list} {params.prefix}" )
+        shell("bowtie2-build --seed {params.seed} -f {fasta_list} {params.prefix}" )
 
 
 rule mv_fasta_2_bowtie_index:
     input:
-        fasta = expand("{GENOMEDIR}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", GENOMEDIR=GENOMEDIR, chr = config["chromosomes"]),
+        fasta = expand("{genomedir}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", genomedir = config["GENOMEDIR"], chr = config["chromosomes"]),
         bowtie_index = "reference/bowtie2/chr19_22/"
     output:
         "reference/bowtie2/chr19_22/GRCh37.85_chr19_22.fa"
@@ -77,16 +84,17 @@ rule mv_fasta_2_bowtie_index:
 
 rule generate_hisat2_index:
     input:
-        fasta = expand("{GENOMEDIR}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", GENOMEDIR=GENOMEDIR, chr = config["chromosomes"]),
+        fasta = expand("{genomedir}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", genomedir = config["GENOMEDIR"], chr = config["chromosomes"]),
         splicesites = "reference/hisat2/splicesites/{which_reduced_gtf}.txt"
     output:
         "reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22.1.ht2"
     params:
-        prefix = "reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22"    
+        prefix = "reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22",
+        seed = config["SEED"]    
     threads: 8
     run:
         fasta_list = ",".join(input.fasta)
-        shell("hisat2-build -p {threads} --seed {SEED} --ss {input.splicesites} {fasta_list} {params.prefix}" )
+        shell("hisat2-build -p {threads} --seed {params.seed} --ss {input.splicesites} {fasta_list} {params.prefix}" )
 
 
 ############
@@ -172,7 +180,7 @@ rule hisat2_mapping:
         novel_splicesites = "simulation/mapping/hisat2/{which_reduced_gtf}/novel_splice_sites_hisat2.txt"
     params:
         basename = "reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22",
-        seed = SEED
+        seed = config["SEED"]
     threads:
         config["cores"]
     log:
@@ -182,12 +190,10 @@ rule hisat2_mapping:
         hisat2 -x {params.basename} -1 {input.fastq1} -2 {input.fastq2} -S {output.sam} --novel-splicesite-outfile {output.novel_splicesites} --rna-strandness RF -k 1 --new-summary --no-unal -p {threads} --seed {params.seed} 2> {log}
         """
 
-
 ## sequencing is dUTS, so strandedness is fr-firststrand --> RF
 
 ## TODO: allow multimapping reads? set k to 5? (default)
-### TODO fill in the missing parameters and try different paramter combinations?
-## TODO: make a comparison plot with STAR
+
 
 
 #######################
@@ -227,3 +233,5 @@ rule index_bam:
         4
     shell:
         "samtools index -@ {threads} {input.bam}"
+
+

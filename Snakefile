@@ -20,11 +20,11 @@ STAR_PARAMS_DIRNAME = ["default", "default_2_pass", "outSJfilterOverhangMin9", "
 
 ### sub sections of the workflow:
 include: "rules/rsem_simulation.smk"
-include: "rules/mapping_comparison.smk"
+# include: "rules/mapping_comparison.smk"
 include: "rules/mapping.smk"
-include: "rules/predict_novel_splicing_events.smk"
-include: "rules/quantification.smk"
-include: "rules/mapping_real_data.smk"
+# include: "rules/predict_novel_splicing_events.smk"
+# include: "rules/quantification.smk"
+# include: "rules/mapping_real_data.smk"
 
 
 rule all:
@@ -200,6 +200,23 @@ rule run_fastqc:
 # Run read mapping
 
 ##################
+
+rule run_star:
+    input:
+        expand("reference/STAR/chr19_22/{which_reduced_gtf}/Genome", which_reduced_gtf = config["reduced_gtf"]),
+        expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_SJ.out.tab", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"]),
+        expand("simulation/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/pass2_Aligned.out_s.bam.bai", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+
+rule run_hisat2:
+    input:
+        expand("reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22.1.ht2", which_reduced_gtf = config["reduced_gtf"]),
+        expand("reference/hisat2/chr19_22/{which_reduced_gtf}/{which_reduced_gtf}_GRCh37.85_chr19_22.1.ht2", which_reduced_gtf = config["reduced_gtf"],),
+        expand("simulation/mapping/hisat2/{which_reduced_gtf}/{bam_name}_s.bam.bai", which_reduced_gtf = config["reduced_gtf"], bam_name = "hisat2")
+
+rule run_tophat2:
+    input:
+        expand("simulation/mapping/tophat/{which_reduced_gtf}/{test_dirnames}/accepted_hits_s.bam.bai", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["tophat_param"])
+
 
 
 ##################
