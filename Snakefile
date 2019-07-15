@@ -278,3 +278,38 @@ rule map_real_data:
     input:
         expand("SRR3192428/mapping/STAR/{which_reduced_gtf}/{test_dirnames}/{bam_name}_chr19_22_s.bam.bai", which_reduced_gtf = config["reduced_gtf"], test_dirnames = "default", bam_name = "pass2_Aligned.out"),
         expand("SRR3192428/mapping/hisat2/{which_reduced_gtf}/hisat2_s.bam.bai", which_reduced_gtf = config["reduced_gtf"] )
+
+
+#################
+
+# Novel exon prediction
+
+################
+
+rule predict_exons:
+    input:
+        expand("simulation/analysis/filtered_SJ/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+
+
+rule make_PR_curves:
+    input:
+        expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+
+
+
+#################
+
+# Stringtie evaluation
+
+################
+
+rule run_stringtie:
+    input:
+        expand("simulation/analysis/stringtie/predictions/{which_reduced_gtf}/{stringtie_param}/novel_exons_{test_dirnames}_stringtie.txt", which_reduced_gtf = config["reduced_gtf"], stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6")
+            #test_dirnames = config["star_param"])
+
+rule stringtie_PR_curves:
+    input:
+        expand("simulation/analysis/stringtie/PR/{which_reduced_gtf}/{stringtie_param}/{test_dirnames}/PR_class_expr.pdf", which_reduced_gtf = config["reduced_gtf"], stringtie_param = config["stringtie_param"], test_dirnames = "outSJfilterOverhangMin6")
+            #test_dirnames = config["star_param"])
+
