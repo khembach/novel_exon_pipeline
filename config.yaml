@@ -76,7 +76,7 @@ star_param:
     alignSJoverhangMin3: "--alignSJoverhangMin 3"
     # outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6: "--outSJfilterDistToOtherSJmin 0 0 0 0 --outSJfilterOverhangMin 30 6 6 6"
 
-## Star parameters for exon discovery
+## Star --outSJfilterOverhangMin parameter for exon discovery
 overhang_min:
     default: "12"
     outSJfilterOverhangMin9: "9"

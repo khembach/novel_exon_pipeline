@@ -209,7 +209,7 @@ rule run_extend_gtf:
 
 rule make_PR_curves:
     input:
-        expand("simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand("simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
 
 rule write_predicted_fasta:
     input:
@@ -217,7 +217,7 @@ rule write_predicted_fasta:
 
 rule run_gffcompare:
     input:
-        expand("simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf", which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
+        expand("simulation/analysis/gffcompare/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf", exon_pred_dir = "package_test", which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
 
 
 

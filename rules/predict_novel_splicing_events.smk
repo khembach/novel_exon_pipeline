@@ -22,7 +22,7 @@ rule predict_novel_exons:
     params:
         overhang_min = lambda wildcards: config["overhang_min"][wildcards.test_dirnames]
     log:
-        "logs/Rout/exon_prediction/{which_reduced_gtf}_{test_dirnames}.log"
+        "logs/Rout/exon_prediction/{exon_pred_dir}/{which_reduced_gtf}_{test_dirnames}.log"
     shell:
         '''{Rbin} CMD BATCH --no-restore --no-save "--args GTF='{input.gtf}' SJFILE='{input.sj}' BAM='{input.bam}' OVERHANGMIN='{params.overhang_min}' OUTFILE='{output}'" {input.script} {log}'''  
 
@@ -41,7 +41,7 @@ rule add_predicted_exon_to_gtf:
     output:
         outfile = "simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf"
     log:
-        "logs/Rout/extend_gtf/{which_reduced_gtf}_{test_dirnames}.log"
+        "logs/Rout/extend_gtf/{exon_pred_dir}/{which_reduced_gtf}_{test_dirnames}.log"
     shell:
         '''{Rbin} CMD BATCH --no-restore --no-save "--args GTF='{input.gtf}' EXONPRED='{input.exon_prediction}' OUTFILE='{output}'" {input.script} {log}'''
 
@@ -87,16 +87,16 @@ rule transcriptome_fasta:
 ## output contains last plot to make sure that the script run through
 rule plot_PR_curve:
     input:
+        script = "scripts/plot_PR_curve_novel_sj.R",
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
-        prediction = "simulation/analysis/filtered_SJ/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
+        prediction = "simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     output:
-        "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf",
-        outdir = "simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/{which_reduced_gtf}/{test_dirnames}/"
-    conda:
-         "../envs/r_scripts.yaml"
-    script:
-        "../scripts/plot_PR_curve_novel_sj.R"
-
+        "simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf",
+        outdir = "simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/"
+    log:
+        "logs/Rout/PR_curve/{exon_pred_dir}/{which_reduced_gtf}_{test_dirnames}.log"
+    shell:
+        '''{Rbin} CMD BATCH --no-restore --no-save "--args REMOVED='{input.removed}' PREDICTION='{input.prediction}' OUTDIR='{output.outdir}'" {input.script} {log}''' 
 
 
 
@@ -201,10 +201,10 @@ rule gffcompare_stringtie:
 
 rule gffcompare_prediction:
     input:
-        prediction = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
+        prediction = "simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf",
         ref_gtf = config["gtf"]
     output:
-        outfile = "simulation/analysis/gffcompare/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
-        refmap = "simulation/reduced_GTF_with_predicted_exons/{which_reduced_gtf}/prediction.GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf.refmap"
+        outfile = "simulation/analysis/gffcompare/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf",
+        refmap = "simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/prediction.GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf.refmap"
     shell:
-        "gffcompare {input.prediction} -o simulation/analysis/gffcompare/{wildcards.which_reduced_gtf}/{wildcards.test_dirnames}/prediction -r {input.ref_gtf} -e 100 -d 100 -V"
+        "gffcompare {input.prediction} -o simulation/analysis/gffcompare/{wildcards.exon_pred_dir}/{wildcards.which_reduced_gtf}/{wildcards.test_dirnames}/prediction -r {input.ref_gtf} -e 100 -d 100 -V"
