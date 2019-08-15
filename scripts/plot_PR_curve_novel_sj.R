@@ -115,7 +115,9 @@ ggsave(paste0(OUTDIR, "PR_junc_reads.pdf"), p, device = "pdf", height = 5, width
 
 
 ####### From here on, we only consider the exons with at least 1 junction read
-## compute the precision for only the exons with junction reads
+## Seperate the exons according to their class
+## We do not know from which class the predictions are. Thus, we compute local recall but not precision (requires number of FP). As precision, we use the global precision (precision for a given number of supporting reads)
+
 removed <- removed %>% filter(pmin(removed$count_lsj, removed$count_rsj, na.rm = TRUE) > 0)  ## all exons with at least 1 junction read
 dat_all <- compute_pr_rec(novelExons, nrow(removed))
 precision_all <- dat_all %>% select(min_reads, precision)
