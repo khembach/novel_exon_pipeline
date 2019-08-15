@@ -200,16 +200,16 @@ rule map_real_data:
 
 rule predict_exons:
     input:
-        expand("simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand("simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt", exon_pred_dir = "package", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
 
 rule run_extend_gtf:
     input: 
-        expand("simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand("simulation/reduced_GTF_with_predicted_exons/{exon_pred_dir}/{which_reduced_gtf}/GRCh37.85_chr19_22_novel_exons_{test_dirnames}.gtf", exon_pred_dir = "package", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
 
 
 rule make_PR_curves:
     input:
-        expand("simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf", exon_pred_dir = "package_test", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
+        expand("simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf", exon_pred_dir = "package", which_reduced_gtf = config["reduced_gtf"], test_dirnames = config["star_param"])
 
 rule write_predicted_fasta:
     input:
@@ -217,7 +217,7 @@ rule write_predicted_fasta:
 
 rule run_gffcompare:
     input:
-        expand("simulation/analysis/gffcompare/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf", exon_pred_dir = "package_test", which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
+        expand("simulation/analysis/gffcompare/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/prediction.annotated.gtf", exon_pred_dir = "package", which_reduced_gtf = "me_exon", test_dirnames = "outSJfilterOverhangMin6")
 
 
 
