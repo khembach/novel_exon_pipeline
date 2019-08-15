@@ -35,7 +35,6 @@ SEED: 584
 ## maximal number of cores to use
 cores: 12
 
-
 ## Gene annotation file
 ##--------------------------------------------------------------------------------------------
 gtf : "annotation/Homo_sapiens.GRCh37.85_chr19_22.gtf"
@@ -76,6 +75,15 @@ star_param:
     scoreGenomicLengthLog2scale0: "--scoreGenomicLengthLog2scale 0"
     alignSJoverhangMin3: "--alignSJoverhangMin 3"
     # outSJfilterDistToOtherSJmin0_outSJfilterOverhangMin6: "--outSJfilterDistToOtherSJmin 0 0 0 0 --outSJfilterOverhangMin 30 6 6 6"
+
+## Star --outSJfilterOverhangMin parameter for exon discovery
+overhang_min:
+    default: "12"
+    outSJfilterOverhangMin9: "9"
+    outSJfilterOverhangMin6: "6"
+    outSJfilterCountTotalMin3: "12"
+    scoreGenomicLengthLog2scale0: "12"
+    alignSJoverhangMin3: "12"
 
 tophat_param:
     default: ""
@@ -121,3 +129,6 @@ stringtie_param:
     minIsoformAbundance0.2:    "-f 0.2"
     noEndTrimming:  "-t"
     minReadCoverage1_minIsoformAbundance0.05:   "-c 1 -f 0.05"
+
+## R setup
+Rbin: "/usr/local/R/R-3.6.0/bin/R"

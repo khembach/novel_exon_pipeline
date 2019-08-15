@@ -2,49 +2,23 @@
 ## First, we evaluate the exons by class. Then we only evaluate the exons with at least 1 mapped junction read (all others are not expected to be predicted). 
 ## Last, we we separate the exons according to their location, type or expression.
 
+args <- (commandArgs(trailingOnly = TRUE))
+for (i in seq_len(length(args))) {
+    eval(parse(text = args[[i]]))
+}
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(data.table)
+print(REMOVED)
+print(PREDICTION)
+print(OUTDIR)
 
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(tidyr)
+  library(data.table)
+})
 
-REMOVED <- snakemake@input[["removed"]]  ## al removed exons, with mapped junction counts
-PREDICTION <- snakemake@input[["prediction"]]
-OUTDIR <- snakemake@output[["outdir"]]
-
-
-## stringtie
-# REMOVED = "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
-# PREDICTION = "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/stringtie/predictions/me_exon/minReadCoverage1_minIsoformAbundance0.05/novel_exons_outSJfilterOverhangMin6_stringtie.txt"
-
-
-# REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
-# REMOVED <- "simulation/reduced_GTF/removed_microexons_exons_unique_classified.txt"
-# PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
-# PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/two_junc_reads/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
-
-# params <- c("default", "outSJfilterOverhangMin9", "outSJfilterOverhangMin6", "outSJfilterCountTotalMin3", "scoreGenomicLengthLog2scale0", "alignSJoverhangMin3")
-# PRED_PATH <- "simulation/analysis/filtered_SJ/me_exon/novel_exons_"
-# OUTDIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/exon_prediction_performance/PR/test/"
-
-## reads with 2 junctions
-# REMOVED <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/mapped_junction_count/removed_me_exon_unique_classified_outSJfilterOverhangMin6_junc_count.txt"
-# PREDICTION <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/filtered_SJ/two_junc_reads_gene_pairs_annotated/me_exon/novel_exons_outSJfilterOverhangMin6.txt"
-# OUTDIR <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/analysis/exon_prediction_performance/PR/two_junc_reads_gene_pairs_annotated/me_exon/outSJfilterOverhangMin6/"
-
-
-# SJFILE <- "/Volumes/Shared/kathi/microexon_pipeline/simulation/mapping/STAR/me_exon/outSJfilterOverhangMin6/pass2_SJ.out.tab"
-# sj <- fread(SJFILE)
-# colnames(sj) <- c("seqnames", "start", "end", "strand", "motif", "annotated", "unique", "mutimapping", "maxoverhang")
-# 
-# #strand: (0: undefined, 1: +, 2: -)
-# sj$strand[sj$strand==0] <- "*"
-# sj$strand[sj$strand==1] <- "+"
-# sj$strand[sj$strand==2] <- "-"
-
-
-
+## ---------------------------------------------------------------------------
 
 novelExons <- read.table(PREDICTION, header=TRUE, stringsAsFactors = FALSE)
 ##  list of all removed exons (the truth)
@@ -141,7 +115,9 @@ ggsave(paste0(OUTDIR, "PR_junc_reads.pdf"), p, device = "pdf", height = 5, width
 
 
 ####### From here on, we only consider the exons with at least 1 junction read
-## compute the precision for only the exons with junction reads
+## Seperate the exons according to their class
+## We do not know from which class the predictions are. Thus, we compute local recall but not precision (requires number of FP). As precision, we use the global precision (precision for a given number of supporting reads)
+
 removed <- removed %>% filter(pmin(removed$count_lsj, removed$count_rsj, na.rm = TRUE) > 0)  ## all exons with at least 1 junction read
 dat_all <- compute_pr_rec(novelExons, nrow(removed))
 precision_all <- dat_all %>% select(min_reads, precision)
