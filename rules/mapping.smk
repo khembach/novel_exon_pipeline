@@ -47,12 +47,13 @@ rule generate_star_index:
         fasta = expand("{genomedir}Homo_sapiens.GRCh37.dna.chromosome.{chr}.fa", genomedir = config["GENOMEDIR"], chr = config["chromosomes"]),
         gtf = get_gtf
     output:
-        "reference/STAR/chr19_22/{which_reduced_gtf}/Genome",
+        "reference/STAR/chr19_22/{which_reduced_gtf}/Genome"
+    params:
         outdir = "reference/STAR/chr19_22/{which_reduced_gtf}/"
     threads: 
         config["cores"]
     shell:
-        "STAR --runMode genomeGenerate --runThreadN {threads} --genomeDir {output.outdir} --genomeFastaFiles {input.fasta} "
+        "STAR --runMode genomeGenerate --runThreadN {threads} --genomeDir {params.outdir} --genomeFastaFiles {input.fasta} "
         "--sjdbGTFfile {input.gtf} -sjdbOverhang 100"
 
 ### use Hisat2 because tophat2 is on low maintenance???
