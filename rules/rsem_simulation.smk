@@ -33,8 +33,27 @@ rule calculate_expression:
 		samplename = config["SAMPLENAME"],
 		rsemref = config["RSEMREF"]
 	shell:
-		"rsem-calculate-expression --paired-end {input.fa1} {input.fa2} {params.rsemref} simulation/{params.samplename} --strandedness reverse -p {threads} --star --star-gzipped-read-file"
+		"rsem-calculate-expression --paired-end {input.fa1} {input.fa2} {params.rsemref} simulation/{params.samplename} --strandedness reverse -p {threads} --star --gzipped-read-file"
 		#--fragment-lenth-min 200   --> should we set this parameter?
+
+#   ## ENCODE3 pipeline parameters, which are used by RSEM calculate-expression
+# " --genomeDir $star_genome_path " .
+# ' --outSAMunmapped Within ' .
+# ' --outFilterType BySJout ' .
+# ' --outSAMattributes NH HI AS NM MD ' .
+# ' --outFilterMultimapNmax 20 ' .
+# ' --outFilterMismatchNmax 999 ' .
+# ' --outFilterMismatchNoverLmax 0.04 ' .
+# ' --alignIntronMin 20 ' .
+# ' --alignIntronMax 1000000 ' .
+# ' --alignMatesGapMax 1000000 ' .
+# ' --alignSJoverhangMin 8 ' .
+# ' --alignSJDBoverhangMin 1 ' .
+# ' --sjdbScore 1 ' .
+# " --runThreadN $nThreads " .
+   
+
+
 
 
 ### modify the RSEM model file (remove the probability of generating reads with quality 2 to prevent sampling of reads with overall low quality)
