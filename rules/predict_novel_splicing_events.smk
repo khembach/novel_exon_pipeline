@@ -91,12 +91,13 @@ rule plot_PR_curve:
         removed = "simulation/analysis/mapped_junction_count/removed_{which_reduced_gtf}_unique_classified_{test_dirnames}_junc_count.txt",
         prediction = "simulation/analysis/filtered_SJ/{exon_pred_dir}/{which_reduced_gtf}/novel_exons_{test_dirnames}.txt"
     output:
-        "simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf",
+        "simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/PR_expression.pdf"
+    params:
         outdir = "simulation/analysis/exon_prediction_performance/PR/{exon_pred_dir}/{which_reduced_gtf}/{test_dirnames}/"
     log:
         "logs/Rout/PR_curve/{exon_pred_dir}/{which_reduced_gtf}_{test_dirnames}.log"
     shell:
-        '''{Rbin} CMD BATCH --no-restore --no-save "--args REMOVED='{input.removed}' PREDICTION='{input.prediction}' OUTDIR='{output.outdir}'" {input.script} {log}''' 
+        '''{Rbin} CMD BATCH --no-restore --no-save "--args REMOVED='{input.removed}' PREDICTION='{input.prediction}' OUTDIR='{params.outdir}'" {input.script} {log}''' 
 
 
 
