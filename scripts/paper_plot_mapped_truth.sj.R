@@ -87,28 +87,106 @@ eval_sj <- function(in_files, in_path) {
 
 
 plot_PR_curve <- function(dat, out_dir, prefix){
-  ## TODO: legend at bottom, bigger text, bigger and transparent symbols
-  ## combine plot for all and SJ reads
-    p <- ggplot(dat[dat$measure == "TP",], aes(x = TPR, y = Precision, 
-                                               color = parameter)) +
-      geom_point(aes(shape = mapper), size = 4, alpha = 0.7) + 
-      facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
-      theme_bw(base_size = 14) +
-      scale_x_continuous(limits = c(0.95, 1)) +
-      scale_y_continuous(limits = c(0.95, 1)) +
-      coord_equal(ratio=1) +
-      labs(x = "Recall") +
-      theme(strip.text = element_text(size = 14), 
-            axis.text.y = element_text(size = 14),
-            axis.title = element_text(size = 16),
-            axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
-            legend.position="bottom", legend.box = "vertical") +
-      guides(shape = guide_legend(order = 1),
-             color = guide_legend(order = 2, ncol = 2))
-
-    ggsave(file.path(out_dir, paste0(prefix, "_evaluation_SJ_PR.pdf")), 
-           p, width = 7, height = 7) 
+  dat <- dat %>%
+    dplyr::mutate(F1 = 2 * (Precision * TPR) / (Precision + TPR))
+  levels(dat$removed_annotation) <- gsub("_", " + ", 
+                                         levels(dat$removed_annotation))
+  
+  pr <- ggplot(dat[dat$measure == "TP",], aes(x = TPR, y = Precision, 
+                                              color = parameter)) +
+    geom_point(aes(shape = mapper), size = 4, alpha = 0.7) + 
+    facet_grid(rows = vars(removed_annotation), cols = vars(read), 
+               labeller = label_wrap_gen(width = 10)) +
+    theme_bw(base_size = 14) +
+    scale_x_continuous(limits = c(0.95, 1)) +
+    scale_y_continuous(limits = c(0.95, 1)) +
+    coord_equal(ratio=1) +
+    labs(x = "Recall") +
+    theme(strip.text = element_text(size = 14), 
+          axis.text.y = element_text(size = 14),
+          axis.title = element_text(size = 16),
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+          legend.position = "none") +
+    scale_color_locuszoom()
+  
+  ggsave(file.path(out_dir, paste0(prefix, "_evaluation_SJ_PR.pdf")), 
+         pr, width = 5, height = 6) 
+  
+  ## F1 score plot
+  dat <- dat %>% mutate(combination = paste0(mapper, "_", parameter))
+  p <- ggplot(dat[dat$measure == "TP",], aes(x = combination, y = F1, 
+                                             color = parameter, shape = mapper )) + 
+    geom_segment(aes(x = combination, xend = combination, y = 0.95, yend = F1)) +
+    geom_point(size=4, alpha=0.6) +
+    theme_bw(base_size = 14) +
+    facet_grid(rows = vars(removed_annotation), cols = vars(read)) +
+    labs(y = "F1 score", x = "Mapping tool and parameter") +
+    theme(strip.text = element_text(size = 14), 
+          axis.text.y = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+          axis.title = element_text(size = 16),
+          legend.position = "none") +
+    scale_y_continuous(limits = c(0.95, 1)) + 
+    scale_color_locuszoom() +
+    coord_flip()
+  
+  ggsave(file.path(out_dir, paste0(prefix, 
+                                   "_evaluation_SJ_lollipop_F1.pdf")), 
+         p, width = 5, height = 6) 
 }
+
+
+plot_PR_curve_seperate_reads_combined <- function(dat1, dat2, out_dir, prefix){
+  dat <- rbind(dat1 %>% mutate(reads = "all reads"), dat2 %>% 
+                 mutate(reads = "novel SJ reads")) %>%
+    dplyr::mutate(F1 = 2 * (Precision * TPR) / (Precision + TPR))
+  levels(dat$removed_annotation) <- gsub("_", " + ", 
+                                         levels(dat$removed_annotation))
+  
+  pr <- ggplot(dat[dat$measure == "TP",], aes(x = TPR, y = Precision, 
+                                              color = parameter)) +
+    geom_point(aes(shape = mapper), size = 4, alpha = 0.7) + 
+    facet_grid(removed_annotation ~ reads + read,
+               labeller = label_wrap_gen(width = 9)) +
+    theme_bw(base_size = 14) +
+    scale_x_continuous(limits = c(0.95, 1), labels = c(0.95, "", "", "", "", 1)) +
+    scale_y_continuous(limits = c(0.95, 1), labels = c(0.95, "", "", "", "", 1)) +
+    coord_equal(ratio=1) +
+    labs(x = "Recall") +
+    theme(strip.text = element_text(size = 14), 
+          axis.text.y = element_text(size = 12),
+          axis.title = element_text(size = 16),
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+          legend.position = "none") +
+    scale_color_locuszoom()
+  
+  ggsave(file.path(out_dir, paste0(prefix, "_evaluation_SJ_PR.pdf")), 
+         pr, width = 7, height = 6) 
+  
+  ## F1 score plot
+  dat <- dat %>% mutate(combination = paste0(mapper, "_", parameter))
+  p <- ggplot(dat[dat$measure == "TP",], aes(x = combination, y = F1, 
+                                             color = parameter, shape = mapper )) + 
+    geom_segment(aes(x = combination, xend = combination, y = 0.95, yend = F1)) +
+    geom_point(size=4, alpha=0.6) +
+    theme_bw(base_size = 14) +
+    facet_grid(removed_annotation ~ reads + read,
+               labeller = label_wrap_gen(width = 9)) +
+    labs(y = "F1 score", x = "Mapping tool and parameter") +
+    theme(strip.text = element_text(size = 14), 
+          axis.text.y = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+          axis.title = element_text(size = 16),
+          legend.position = "none") +
+    scale_y_continuous(limits = c(0.95, 1), labels = c(0.95, "", "", "", "", 1)) + 
+    scale_color_locuszoom() +
+    coord_flip()
+  
+  ggsave(file.path(out_dir, paste0(prefix, 
+                                   "_evaluation_SJ_lollipop_F1.pdf")), 
+         p, width = 7, height = 6) 
+}
+
 
 
 plot_PR_curve_combined <- function(dat1, dat2, out_dir, prefix){
@@ -238,6 +316,8 @@ plot_PR_curve(dat_removed, OUTDIR, prefix = "reads_removed_exons")
 
 
 ## both curves in one pdf
+plot_PR_curve_seperate_reads_combined(dat_all, dat_removed, OUTDIR, 
+                                      prefix = "all_and_removed_exons_seperate_reads")
 plot_PR_curve_combined(dat_all, dat_removed, OUTDIR, prefix = "all_and_removed_exons")
 
 
